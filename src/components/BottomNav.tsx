@@ -20,7 +20,7 @@ export default function BottomNav() {
         const Icon = tab.icon;
         return (
           <button key={tab.path} onClick={() => navigate(tab.path)}
-            className="flex flex-col items-center gap-0.5 py-1 apple-btn"
+            className="flex flex-col items-center gap-0.5 py-1 apple-btn nav-tap"
             style={{ minWidth: 56 }}>
             {tab.path === '/add' ? (
               <div className="w-11 h-11 rounded-full flex items-center justify-center"
@@ -29,10 +29,10 @@ export default function BottomNav() {
               </div>
             ) : (
               <Icon size={24} strokeWidth={active ? 2.5 : 1.5}
-                color={active ? '#4f7cff' : '#6e6e73'} />
+                color={active ? '#4f7cff' : '#6e6e73'} style={{ transition: 'color 0.2s, stroke-width 0.2s' }} />
             )}
             {tab.path !== '/add' && (
-              <span style={{ fontSize: 10, fontWeight: active ? 600 : 400, color: active ? '#4f7cff' : '#6e6e73' }}>
+              <span style={{ fontSize: 10, fontWeight: active ? 600 : 400, color: active ? '#4f7cff' : '#6e6e73', transition: 'color 0.2s, font-weight 0.2s' }}>
                 {tab.label}
               </span>
             )}

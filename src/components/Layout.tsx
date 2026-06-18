@@ -1,9 +1,10 @@
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 import BottomNav from './BottomNav';
 import { useStore } from '../store/useStore';
 
 export default function Layout() {
   const darkMode = useStore(s => s.darkMode);
+  const location = useLocation();
 
   return (
     <>
@@ -18,7 +19,7 @@ export default function Layout() {
       />
       {/* Content */}
       <div className="relative min-h-screen" style={{ maxWidth: 480, margin: '0 auto', paddingBottom: 100 }}>
-        <div className="page-enter">
+        <div className="page-enter" key={location.pathname}>
           <Outlet />
         </div>
         <BottomNav />

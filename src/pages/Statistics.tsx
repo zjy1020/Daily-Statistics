@@ -26,6 +26,7 @@ export default function Statistics() {
   const getMonthlyExpense = useStore(s => s.getMonthlyExpense);
   const getMonthlyIncome = useStore(s => s.getMonthlyIncome);
   const getMonthlyTrend = useStore(s => s.getMonthlyTrend);
+  const darkMode = useStore(s => s.darkMode);
 
   const month = getThisMonth();
   const expense = getMonthlyExpense();
@@ -94,8 +95,22 @@ export default function Statistics() {
 
   const COLORS = ['#4f7cff', '#34c759', '#ff9f0a', '#ff3b30', '#5ac8fa', '#af52de', '#ffd60a', '#8e8e93'];
 
+  const tooltipProps = {
+    contentStyle: {
+      background: darkMode ? 'rgba(44,44,46,0.95)' : 'rgba(255,255,255,0.95)',
+      border: 'none',
+      borderRadius: 12,
+      backdropFilter: 'blur(20px)',
+      WebkitBackdropFilter: 'blur(20px)',
+      boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
+      padding: '8px 14px',
+    },
+    labelStyle: { color: darkMode ? '#f5f5f7' : '#1d1d1f', fontSize: 13, fontWeight: 600 } as React.CSSProperties,
+    itemStyle: { color: darkMode ? '#98989d' : '#6e6e73', fontSize: 12 } as React.CSSProperties,
+  };
+
   return (
-    <div className="px-4 pt-12">
+    <div className="px-4 pt-12 stagger">
       <div className="flex items-center justify-between mb-2">
         <h1 className="text-2xl font-bold text-apple-text dark:text-apple-dark-text">统计</h1>
         <button onClick={() => setShowCalendar(!showCalendar)}
@@ -242,12 +257,12 @@ export default function Statistics() {
             <ResponsiveContainer width="100%" height={220}>
               <PieChart>
                 <Pie data={categoryData} cx="50%" cy="50%" innerRadius={55} outerRadius={90}
-                  paddingAngle={3} dataKey="value">
+                  paddingAngle={3} dataKey="value" nameKey="name">
                   {categoryData.map((_, i) => (
                     <Cell key={i} fill={COLORS[i % COLORS.length]} />
                   ))}
                 </Pie>
-                <Tooltip formatter={(v) => formatCurrency(Number(v))} />
+                <Tooltip {...tooltipProps} formatter={(v: number) => [formatCurrency(v), '金额']} />
               </PieChart>
             </ResponsiveContainer>
           ) : (
@@ -262,8 +277,8 @@ export default function Statistics() {
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(60,60,67,0.06)" />
                 <XAxis dataKey="name" tick={{ fontSize: 11 }} />
                 <YAxis tick={{ fontSize: 11 }} />
-                <Tooltip formatter={(v) => formatCurrency(Number(v))} />
-                <Bar dataKey="value" radius={[6, 6, 0, 0]}>
+                <Tooltip {...tooltipProps} cursor={false} formatter={(v: number) => [formatCurrency(v), '金额']} />
+                <Bar dataKey="value" radius={[6, 6, 0, 0]} name="金额">
                   {categoryData.map((_, i) => (
                     <Cell key={i} fill={COLORS[i % COLORS.length]} />
                   ))}
@@ -282,9 +297,9 @@ export default function Statistics() {
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(60,60,67,0.06)" />
                 <XAxis dataKey="month" tick={{ fontSize: 11 }} />
                 <YAxis tick={{ fontSize: 11 }} />
-                <Tooltip formatter={(v) => formatCurrency(Number(v))} />
-                <Line type="monotone" dataKey="expense" stroke="#ff3b30" strokeWidth={2} dot={false} />
-                <Line type="monotone" dataKey="income" stroke="#34c759" strokeWidth={2} dot={false} />
+                <Tooltip {...tooltipProps} cursor={false} formatter={(v: number, n: string) => [formatCurrency(v), n === 'expense' ? '支出' : '收入']} />
+                <Line type="monotone" dataKey="expense" stroke="#ff3b30" strokeWidth={2} dot={false} name="支出" />
+                <Line type="monotone" dataKey="income" stroke="#34c759" strokeWidth={2} dot={false} name="收入" />
               </LineChart>
             </ResponsiveContainer>
           ) : (

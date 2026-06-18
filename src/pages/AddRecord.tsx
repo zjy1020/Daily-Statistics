@@ -35,7 +35,7 @@ export default function AddRecord() {
   };
 
   return (
-    <div className="px-4 pt-12">
+    <div className="px-4 pt-12 stagger">
       <div className="flex items-center justify-between mb-6">
         <button onClick={() => navigate(-1)} className="w-9 h-9 rounded-full bg-white/80 dark:bg-gray-800 flex items-center justify-center apple-btn shadow-sm">
           <ArrowLeft size={18} className="text-apple-text dark:text-apple-dark-text" />
@@ -48,7 +48,7 @@ export default function AddRecord() {
       <div className="apple-card p-1 flex mb-4">
         {(['expense', 'income'] as const).map(t => (
           <button key={t} onClick={() => { setType(t); setCategory(t === 'expense' ? '餐饮' : '工资'); }}
-            className={`flex-1 py-2.5 rounded-full text-sm font-medium transition-all ${
+            className={`flex-1 py-2.5 rounded-full text-sm font-medium transition-colors ${
               type === t ? 'bg-apple-blue text-white shadow-sm' : 'text-apple-subtext dark:text-apple-dark-subtext'
             }`}>
             {t === 'expense' ? '支出' : '收入'}

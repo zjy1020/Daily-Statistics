@@ -99,7 +99,7 @@ export default function Profile() {
   ];
 
   return (
-    <div className="px-4 pt-12">
+    <div className="px-4 pt-12 stagger">
       {/* Profile Header */}
       <div className="flex flex-col items-center mb-8">
         <div className="w-20 h-20 rounded-full bg-gradient-to-br from-apple-blue to-blue-400 flex items-center justify-center text-3xl font-bold text-white shadow-lg mb-3">

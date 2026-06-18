@@ -15,18 +15,19 @@ export default function Dashboard() {
   const getTodayTotal = useStore(s => s.getTodayTotal);
   const getCategoryTotals = useStore(s => s.getCategoryTotals);
   const deleteRecord = useStore(s => s.deleteRecord);
+  const budgets = useStore(s => s.budgets);
   const [selectedRecord, setSelectedRecord] = useState<ExpenseRecord | null>(null);
 
   const monthExpense = getMonthlyExpense();
   const monthIncome = getMonthlyIncome();
   const todayExpense = getTodayTotal('expense');
-  const budgetTotal = 3000;
+  const budgetTotal = budgets.reduce((s, b) => s + b.amount, 0);
   const budgetRemaining = Math.max(budgetTotal - monthExpense, 0);
   const catTotals = getCategoryTotals(getToday().slice(0, 7), 'expense') as Record<string, number>;
   const catKeys = Object.keys(catTotals).sort((a, b) => catTotals[b] - catTotals[a]).slice(0, 5);
 
   return (
-    <div className="px-4 pt-12">
+    <div className="px-4 pt-12 stagger">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>

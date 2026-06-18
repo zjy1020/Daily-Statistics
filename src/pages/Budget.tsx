@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { Plus, Trash2, PiggyBank } from 'lucide-react';
+import { Plus, Trash2, PiggyBank, Check } from 'lucide-react';
 import { useStore } from '../store/useStore';
-import { formatCurrency } from '../utils/helpers';
+import { formatCurrency, getThisMonth } from '../utils/helpers';
 import { expenseCategories } from '../data/categories';
 import { getCategoryIcon } from '../data/categories';
 import type { Budget as BudgetType } from '../types';
@@ -9,36 +9,59 @@ import type { Budget as BudgetType } from '../types';
 export default function BudgetPage() {
   const budgets = useStore(s => s.budgets);
   const addBudget = useStore(s => s.addBudget);
+  const updateBudget = useStore(s => s.updateBudget);
   const deleteBudget = useStore(s => s.deleteBudget);
   const getMonthlyExpense = useStore(s => s.getMonthlyExpense);
+  const getCategoryTotals = useStore(s => s.getCategoryTotals);
   const [showForm, setShowForm] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
   const [category, setCategory] = useState('餐饮');
   const [amount, setAmount] = useState('');
 
+  const month = getThisMonth();
   const totalBudget = budgets.reduce((s, b) => s + b.amount, 0);
   const totalSpent = getMonthlyExpense();
+  const catTotals = getCategoryTotals(month, 'expense') as Record<string, number>;
 
-  const handleAdd = () => {
+  const catSpent = (cat: string) => catTotals[cat] || 0;
+
+  const openAdd = () => {
+    setEditId(null);
+    setCategory('餐饮');
+    setAmount('');
+    setShowForm(true);
+  };
+
+  const openEdit = (b: BudgetType) => {
+    setEditId(b.id);
+    setCategory(b.category);
+    setAmount(String(b.amount));
+    setShowForm(true);
+  };
+
+  const handleSave = () => {
     const val = parseFloat(amount);
     if (!val || val <= 0) return;
-    addBudget({ category, amount: val });
+    if (editId) {
+      updateBudget(editId, { category, amount: val });
+    } else {
+      addBudget({ category, amount: val });
+    }
     setShowForm(false);
+    setEditId(null);
     setAmount('');
   };
 
-  const getBudgetSpent = (budget: BudgetType): number => {
-    const spent = getMonthlyExpense();
-    const perCategory = budgets.length > 0 ? spent / budgets.length : 0;
-    return budget.amount > 0 ? budget.spent || perCategory : 0;
-  };
-
   return (
-    <div className="px-4 pt-12">
+    <div className="px-4 pt-12 stagger">
+      {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-apple-text dark:text-apple-dark-text">预算</h1>
-        <button onClick={() => setShowForm(true)}
-          className="w-9 h-9 rounded-full bg-apple-blue flex items-center justify-center apple-btn shadow-sm">
-          <Plus size={18} color="white" />
+        <button onClick={openAdd}
+          className="px-4 py-2 rounded-full bg-apple-blue text-white text-sm font-semibold flex items-center gap-1.5 apple-btn shadow-md"
+          style={{ boxShadow: '0 4px 12px rgba(79,124,255,0.3)' }}>
+          <Plus size={16} strokeWidth={3} />
+          预算
         </button>
       </div>
 
@@ -50,11 +73,19 @@ export default function BudgetPage() {
         <p className="text-sm text-apple-subtext dark:text-apple-dark-subtext mb-1">预算总额</p>
         <p className="text-3xl font-bold text-apple-text dark:text-apple-dark-text mb-3">{formatCurrency(totalBudget)}</p>
         <div className="h-2 rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden mb-2">
-          <div className="h-full rounded-full bg-apple-blue transition-all duration-500"
-            style={{ width: `${totalBudget > 0 ? Math.min((totalSpent / totalBudget) * 100, 100) : 0}%` }} />
+          <div className="h-full rounded-full transition-all duration-500"
+            style={{
+              width: `${totalBudget > 0 ? Math.min((totalSpent / totalBudget) * 100, 100) : 0}%`,
+              background: totalBudget > 0 && totalSpent > totalBudget
+                ? 'linear-gradient(90deg, #ff9f0a, #ff3b30)'
+                : 'linear-gradient(90deg, #4f7cff, #6b9bff)',
+            }} />
         </div>
         <p className="text-xs text-apple-subtext dark:text-apple-dark-subtext">
           已使用 {formatCurrency(totalSpent)} / {formatCurrency(totalBudget)}
+          {totalBudget > 0 && totalSpent > totalBudget && (
+            <span className="text-expense font-medium"> · 超支 {formatCurrency(totalSpent - totalBudget)}</span>
+          )}
         </p>
       </div>
 
@@ -66,19 +97,19 @@ export default function BudgetPage() {
         {budgets.length > 0 ? (
           <div className="divide-y divide-apple-separator dark:divide-apple-dark-separator">
             {budgets.map(b => {
-              const spent = getBudgetSpent(b);
+              const spent = catSpent(b.category);
               const pct = b.amount > 0 ? (spent / b.amount) * 100 : 0;
               return (
                 <div key={b.id} className="px-4 py-3">
                   <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
+                    <button onClick={() => openEdit(b)} className="flex items-center gap-2 apple-btn flex-1 min-w-0 text-left">
                       <span>{getCategoryIcon(b.category)}</span>
                       <span className="text-sm font-medium text-apple-text dark:text-apple-dark-text">{b.category}</span>
-                    </div>
-                    <div className="flex items-center gap-3">
+                    </button>
+                    <div className="flex items-center gap-2">
                       <span className="text-sm font-semibold text-apple-text dark:text-apple-dark-text">{formatCurrency(b.amount)}</span>
-                      <button onClick={() => deleteBudget(b.id)} className="apple-btn">
-                        <Trash2 size={14} color="#ff3b30" />
+                      <button onClick={() => deleteBudget(b.id)} className="w-7 h-7 rounded-full flex items-center justify-center hover:bg-red-50 dark:hover:bg-red-900/20 apple-btn">
+                        <Trash2 size={13} color="#ff3b30" />
                       </button>
                     </div>
                   </div>
@@ -89,25 +120,29 @@ export default function BudgetPage() {
                   </div>
                   <div className="flex justify-between mt-1">
                     <span className="text-xs text-apple-subtext">已用 {formatCurrency(spent)}</span>
-                    <span className="text-xs text-apple-subtext">{pct.toFixed(0)}%</span>
+                    <span className={`text-xs font-medium ${pct > 90 ? 'text-expense' : 'text-apple-subtext'}`}>
+                      {pct.toFixed(0)}%
+                    </span>
                   </div>
                 </div>
               );
             })}
           </div>
         ) : (
-          <p className="text-sm text-apple-subtext text-center py-8">暂无预算，点击右上角 + 添加</p>
+          <p className="text-sm text-apple-subtext text-center py-8">暂无预算，点击上方 + 添加</p>
         )}
       </div>
 
-      {/* Add Budget Form - Modal */}
+      {/* Add/Edit Budget Modal */}
       {showForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
-          <div className="fixed inset-0 bg-black/20" onClick={() => setShowForm(false)} />
+          <div className="fixed inset-0 bg-black/20" onClick={() => { setShowForm(false); setEditId(null); }} />
           <div className="relative bg-white dark:bg-gray-800 rounded-3xl w-full overflow-y-auto shadow-xl"
             style={{ maxWidth: 360, maxHeight: '80vh' }}>
             <div className="p-6">
-              <h3 className="text-lg font-bold text-apple-text dark:text-apple-dark-text mb-4">新增预算</h3>
+              <h3 className="text-lg font-bold text-apple-text dark:text-apple-dark-text mb-4">
+                {editId ? '编辑预算' : '新增预算'}
+              </h3>
               <div className="grid grid-cols-4 gap-3 mb-4">
                 {expenseCategories.map(c => (
                   <button key={c.name} onClick={() => setCategory(c.name)}
@@ -119,12 +154,53 @@ export default function BudgetPage() {
                   </button>
                 ))}
               </div>
-              <input type="number" step="0.01" value={amount} onChange={e => setAmount(e.target.value)}
-                placeholder="预算金额" className="w-full px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-700 text-sm outline-none mb-4" />
-              <button onClick={handleAdd} disabled={amount !== '' && parseFloat(amount) <= 0}
-                className="w-full py-3 rounded-2xl bg-apple-blue text-white font-semibold disabled:opacity-40 apple-btn">
-                添加预算
-              </button>
+
+              {/* Spend info for selected category */}
+              {catSpent(category) > 0 && (
+                <p className="text-xs text-apple-subtext mb-3 text-center">
+                  本月已花费 {formatCurrency(catSpent(category))}
+                </p>
+              )}
+
+              <div className="flex items-center gap-2 mb-4">
+                <button onClick={() => {
+                  const v = parseFloat(amount) || 0;
+                  const dec = v >= 100 ? 100 : v >= 10 ? 10 : 1;
+                  setAmount(String(Math.max(0, v - dec)));
+                }}
+                  className="w-9 h-9 rounded-full flex items-center justify-center apple-btn shrink-0"
+                  style={{ background: 'rgba(60,60,67,0.06)' }}>
+                  <span className="text-lg text-apple-text dark:text-apple-dark-text leading-none">−</span>
+                </button>
+                <input type="number" step="0.01" value={amount} onChange={e => setAmount(e.target.value)}
+                  placeholder="预算金额"
+                  className="flex-1 px-3 py-2.5 rounded-xl bg-gray-100 dark:bg-gray-700 text-sm text-center outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" />
+                <button onClick={() => {
+                  const v = parseFloat(amount) || 0;
+                  const inc = v >= 100 ? 100 : v >= 10 ? 10 : 1;
+                  setAmount(String(v + inc));
+                }}
+                  className="w-9 h-9 rounded-full flex items-center justify-center apple-btn shrink-0"
+                  style={{ background: 'rgba(60,60,67,0.06)' }}>
+                  <span className="text-lg text-apple-text dark:text-apple-dark-text leading-none">+</span>
+                </button>
+              </div>
+
+              <div className="flex gap-3">
+                <button onClick={() => { setShowForm(false); setEditId(null); }}
+                  className="flex-1 py-3 rounded-2xl font-semibold text-sm bg-gray-100 dark:bg-gray-700 text-apple-text dark:text-apple-dark-text apple-btn">
+                  取消
+                </button>
+                <button onClick={handleSave} disabled={amount !== '' && parseFloat(amount) <= 0}
+                  className="flex-1 py-3 rounded-2xl font-semibold text-sm text-white apple-btn disabled:opacity-40 flex items-center justify-center gap-1.5"
+                  style={{
+                    background: 'linear-gradient(135deg, #4f7cff, #6b9bff)',
+                    boxShadow: '0 4px 12px rgba(79,124,255,0.3)',
+                  }}>
+                  <Check size={16} strokeWidth={3} />
+                  {editId ? '保存' : '添加'}
+                </button>
+              </div>
             </div>
           </div>
         </div>
