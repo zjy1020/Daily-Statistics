@@ -216,7 +216,7 @@ export default function Statistics() {
               </div>
               <div className="space-y-1.5">
                 {selectedRecords.map(r => (
-                  <div key={r.id} onClick={() => setClickedRecord(r)} className="flex items-center justify-between apple-btn cursor-pointer">
+                  <div key={r.id} onClick={() => setClickedRecord(r)} className="flex items-center justify-between apple-btn cursor-pointer px-2 py-1.5 rounded-xl hover:bg-black/[0.03] dark:hover:bg-white/[0.04] active:bg-black/[0.06] dark:active:bg-white/[0.08] transition-colors">
                     <div className="flex items-center gap-2">
                       <span className="text-sm">{getCategoryIcon(r.category)}</span>
                       {r.time && <span className="text-xs text-apple-subtext">{r.time}</span>}
@@ -330,8 +330,8 @@ export default function Statistics() {
       {/* Record Action Modal */}
       {clickedRecord && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
-          <div className="fixed inset-0 bg-black/20" onClick={() => setClickedRecord(null)} />
-          <div className="relative bg-white dark:bg-gray-800 rounded-3xl w-full overflow-y-auto shadow-xl"
+          <div className="fixed inset-0 bg-black/20 fade-enter" onClick={() => setClickedRecord(null)} />
+          <div className="relative bg-white dark:bg-gray-800 rounded-3xl w-full overflow-y-auto shadow-xl modal-enter"
             style={{ maxWidth: 340, maxHeight: '80vh' }}>
             <div className="p-6">
               <button onClick={() => setClickedRecord(null)} className="absolute top-3 right-3 w-8 h-8 rounded-full flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/10 apple-btn">

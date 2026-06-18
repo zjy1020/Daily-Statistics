@@ -1,11 +1,13 @@
 import { useNavigate } from 'react-router-dom';
-import { Search, Settings, TrendingUp, TrendingDown, Edit3, Trash2, X } from 'lucide-react';
+import { Search, Settings, TrendingUp, TrendingDown, Edit3, Trash2, X, SlidersHorizontal, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useStore } from '../store/useStore';
 import { formatCurrency, formatDate } from '../utils/helpers';
-import { getCategoryIcon } from '../data/categories';
+import { getCategoryIcon, expenseCategories } from '../data/categories';
 import { getToday } from '../utils/helpers';
-import { useState } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import type { ExpenseRecord } from '../types';
+
+const WEEKDAYS = ['日', '一', '二', '三', '四', '五', '六'];
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -17,6 +19,55 @@ export default function Dashboard() {
   const deleteRecord = useStore(s => s.deleteRecord);
   const budgets = useStore(s => s.budgets);
   const [selectedRecord, setSelectedRecord] = useState<ExpenseRecord | null>(null);
+  const [showSearch, setShowSearch] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterCategory, setFilterCategory] = useState('');
+  const [filterDateFrom, setFilterDateFrom] = useState('');
+  const [filterDateTo, setFilterDateTo] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
+  const [pickerMonth, setPickerMonth] = useState(() => new Date());
+  const [selectingPhase, setSelectingPhase] = useState<'start' | 'end'>('start');
+  const searchRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!showSearch) return;
+    const handleClick = (e: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
+        setShowSearch(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [showSearch]);
+
+  const calendarCells = useMemo(() => {
+    const y = pickerMonth.getFullYear();
+    const m = pickerMonth.getMonth();
+    const fd = new Date(y, m, 1).getDay();
+    const dim = new Date(y, m + 1, 0).getDate();
+    const cells: (number | null)[] = [];
+    for (let i = 0; i < fd; i++) cells.push(null);
+    for (let d = 1; d <= dim; d++) cells.push(d);
+    return cells;
+  }, [pickerMonth]);
+
+  const filteredRecords = useMemo(() => {
+    let result = [...records];
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter(r =>
+        r.note.toLowerCase().includes(q) ||
+        r.category.toLowerCase().includes(q) ||
+        String(r.amount).includes(q)
+      );
+    }
+    if (filterCategory) result = result.filter(r => r.category === filterCategory);
+    if (filterDateFrom) result = result.filter(r => r.date >= filterDateFrom);
+    if (filterDateTo) result = result.filter(r => r.date <= filterDateTo);
+    return result.sort((a, b) => b.date.localeCompare(a.date) || (b.time || '').localeCompare(a.time || ''));
+  }, [records, searchQuery, filterCategory, filterDateFrom, filterDateTo]);
+
+  const hasActiveFilter = !!(searchQuery || filterCategory || filterDateFrom || filterDateTo);
 
   const monthExpense = getMonthlyExpense();
   const monthIncome = getMonthlyIncome();
@@ -29,7 +80,7 @@ export default function Dashboard() {
   return (
     <div className="px-4 pt-12 stagger">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-4">
         <div>
           <p className="text-sm text-apple-subtext dark:text-apple-dark-subtext">欢迎回来</p>
           <h1 className="text-2xl font-bold text-apple-text dark:text-apple-dark-text" style={{ fontWeight: 700 }}>
@@ -37,9 +88,12 @@ export default function Dashboard() {
           </h1>
         </div>
         <div className="flex gap-3">
-          <button className="w-9 h-9 rounded-full bg-white/80 dark:bg-gray-800 flex items-center justify-center apple-btn shadow-sm"
+          <button onClick={() => setShowSearch(v => !v)}
+            className={`w-9 h-9 rounded-full flex items-center justify-center apple-btn shadow-sm transition-all ${
+              showSearch || hasActiveFilter ? 'bg-apple-blue' : 'bg-white/80 dark:bg-gray-800'
+            }`}
             style={{ border: '0.5px solid rgba(60,60,67,0.08)' }}>
-            <Search size={18} color="#6e6e73" />
+            <Search size={18} color={showSearch || hasActiveFilter ? 'white' : '#6e6e73'} />
           </button>
           <button onClick={() => navigate('/profile')}
             className="w-9 h-9 rounded-full bg-white/80 dark:bg-gray-800 flex items-center justify-center apple-btn shadow-sm"
@@ -48,6 +102,180 @@ export default function Dashboard() {
           </button>
         </div>
       </div>
+
+      {/* Search Bar */}
+      {showSearch && (
+        <div ref={searchRef} className="mb-4 space-y-3">
+          <div className="apple-card flex items-center gap-3 px-4 py-3">
+            <Search size={16} className="text-apple-subtext shrink-0" />
+            <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
+              placeholder="搜索备注、分类或金额..."
+              className="flex-1 bg-transparent text-sm text-apple-text dark:text-apple-dark-text outline-none"
+              autoFocus />
+            {searchQuery && (
+              <button onClick={() => setSearchQuery('')} className="w-6 h-6 rounded-full flex items-center justify-center hover:bg-black/5 apple-btn shrink-0">
+                <X size={14} className="text-apple-subtext" />
+              </button>
+            )}
+            <button onClick={() => setShowFilters(v => !v)} className="apple-btn shrink-0">
+              <SlidersHorizontal size={16} color={showFilters || filterCategory || filterDateFrom || filterDateTo ? '#4f7cff' : '#6e6e73'} />
+            </button>
+          </div>
+          {showFilters && (
+            <div className="apple-card p-4 space-y-3">
+              <div>
+                <p className="text-xs text-apple-subtext mb-2 font-medium">分类筛选</p>
+                <div className="flex flex-wrap gap-1.5">
+                  <button onClick={() => setFilterCategory('')}
+                    className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${
+                      !filterCategory ? 'bg-apple-blue text-white' : 'bg-gray-100 dark:bg-gray-700 text-apple-subtext'
+                    }`}>
+                    全部
+                  </button>
+                  {expenseCategories.map(c => (
+                    <button key={c.name} onClick={() => setFilterCategory(filterCategory === c.name ? '' : c.name)}
+                      className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${
+                        filterCategory === c.name ? 'bg-apple-blue text-white' : 'bg-gray-100 dark:bg-gray-700 text-apple-subtext dark:text-apple-dark-subtext'
+                      }`}>
+                      {c.icon} {c.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-xs text-apple-subtext font-medium">日期范围</p>
+                  {(filterDateFrom || filterDateTo) && (
+                    <button onClick={() => { setFilterDateFrom(''); setFilterDateTo(''); }}
+                      className="text-xs text-apple-blue font-medium apple-btn">清除</button>
+                  )}
+                </div>
+                {/* Phase toggle */}
+                <div className="flex items-center gap-2 mb-2">
+                  <button onClick={() => setSelectingPhase('start')}
+                    className={`flex-1 px-2.5 py-1.5 rounded-lg text-xs text-center font-medium transition-all ${
+                      selectingPhase === 'start'
+                        ? 'bg-apple-blue text-white shadow-sm'
+                        : filterDateFrom
+                          ? 'bg-apple-blue/10 text-apple-blue'
+                          : 'bg-gray-100 dark:bg-gray-700 text-apple-subtext'
+                    }`}>
+                    {filterDateFrom || '开始日期'}
+                  </button>
+                  <span className="text-xs text-apple-subtext">→</span>
+                  <button onClick={() => setSelectingPhase('end')}
+                    className={`flex-1 px-2.5 py-1.5 rounded-lg text-xs text-center font-medium transition-all ${
+                      selectingPhase === 'end'
+                        ? 'bg-apple-blue text-white shadow-sm'
+                        : filterDateTo
+                          ? 'bg-apple-blue/10 text-apple-blue'
+                          : 'bg-gray-100 dark:bg-gray-700 text-apple-subtext'
+                    }`}>
+                    {filterDateTo || '结束日期'}
+                  </button>
+                </div>
+                <div className="apple-card p-3">
+                  {/* Month navigation */}
+                  <div className="flex items-center justify-between mb-2">
+                    <button onClick={() => setPickerMonth(d => new Date(d.getFullYear(), d.getMonth() - 1, 1))}
+                      className="w-7 h-7 rounded-full flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/10 apple-btn">
+                      <ChevronLeft size={14} className="text-apple-text dark:text-apple-dark-text" />
+                    </button>
+                    <span className="text-sm font-semibold text-apple-text dark:text-apple-dark-text">
+                      {pickerMonth.getFullYear()}年{pickerMonth.getMonth() + 1}月
+                    </span>
+                    <button onClick={() => setPickerMonth(d => new Date(d.getFullYear(), d.getMonth() + 1, 1))}
+                      className="w-7 h-7 rounded-full flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/10 apple-btn">
+                      <ChevronRight size={14} className="text-apple-text dark:text-apple-dark-text" />
+                    </button>
+                  </div>
+                  {/* Weekday headers */}
+                  <div className="grid grid-cols-7 mb-1">
+                    {WEEKDAYS.map(d => (
+                      <div key={d} className="text-center text-[10px] text-apple-subtext font-medium py-0.5">{d}</div>
+                    ))}
+                  </div>
+                  {/* Day grid */}
+                  <div className="grid grid-cols-7">
+                    {calendarCells.map((day, i) => {
+                      if (day === null) return <div key={`e-${i}`} />;
+                      const y = pickerMonth.getFullYear();
+                      const m = pickerMonth.getMonth();
+                      const dateStr = `${y}-${String(m + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                      const isStart = dateStr === filterDateFrom;
+                      const isEnd = dateStr === filterDateTo;
+                      const inRange = filterDateFrom && filterDateTo && dateStr >= filterDateFrom && dateStr <= filterDateTo;
+                      const isToday = dateStr === getToday();
+                      return (
+                        <button key={dateStr} onClick={() => {
+                          if (selectingPhase === 'start') {
+                            setFilterDateFrom(dateStr);
+                            if (filterDateTo && dateStr > filterDateTo) setFilterDateTo('');
+                          } else {
+                            setFilterDateTo(dateStr);
+                            if (filterDateFrom && dateStr < filterDateFrom) setFilterDateFrom('');
+                          }
+                        }}
+                          className="flex items-center justify-center py-1 apple-btn relative">
+                          <span className={`text-xs leading-tight w-7 h-7 flex items-center justify-center ${
+                            isStart
+                              ? 'bg-apple-blue text-white font-semibold rounded-full'
+                              : isEnd
+                                ? 'border-2 border-apple-blue text-apple-blue font-semibold rounded-full bg-white dark:bg-transparent'
+                                : inRange
+                                  ? 'bg-apple-blue/10 text-apple-blue font-medium rounded-full'
+                                  : isToday
+                                    ? 'text-apple-blue font-medium rounded-full'
+                                    : 'text-apple-text dark:text-apple-dark-text rounded-full'
+                          }`}>
+                            {day}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Filter summary — visible when search is closed but filters are active */}
+      {hasActiveFilter && !showSearch && (
+        <div className="flex items-center gap-2 mb-3 apple-card px-4 py-2.5">
+          <div className="flex items-center gap-1.5 flex-wrap flex-1 min-w-0">
+            {searchQuery && (
+              <span className="text-xs bg-apple-blue/10 text-apple-blue px-2 py-0.5 rounded-full font-medium">
+                "{searchQuery}"
+              </span>
+            )}
+            {filterCategory && (
+              <span className="text-xs bg-apple-blue/10 text-apple-blue px-2 py-0.5 rounded-full font-medium">
+                {filterCategory}
+              </span>
+            )}
+            {filterDateFrom && filterDateTo && (
+              <span className="text-xs bg-apple-blue/10 text-apple-blue px-2 py-0.5 rounded-full font-medium">
+                {filterDateFrom.slice(5)}~{filterDateTo.slice(5)}
+              </span>
+            )}
+            {filterDateFrom && !filterDateTo && (
+              <span className="text-xs bg-apple-blue/10 text-apple-blue px-2 py-0.5 rounded-full font-medium">
+                {filterDateFrom}起
+              </span>
+            )}
+            {!filterDateFrom && filterDateTo && (
+              <span className="text-xs bg-apple-blue/10 text-apple-blue px-2 py-0.5 rounded-full font-medium">
+                {filterDateTo}止
+              </span>
+            )}
+            <span className="text-xs text-apple-subtext ml-1">{filteredRecords.length} 条</span>
+          </div>
+          <button onClick={() => { setSearchQuery(''); setFilterCategory(''); setFilterDateFrom(''); setFilterDateTo(''); }}
+            className="text-xs text-apple-blue font-medium shrink-0 apple-btn">清除</button>
+        </div>
+      )}
 
       {/* Month Overview Card */}
       <div className="apple-card p-6 mb-3">
@@ -124,12 +352,17 @@ export default function Dashboard() {
       {/* Recent Records */}
       <div className="apple-card px-1 py-2 mb-3">
         <div className="flex items-center justify-between px-4 py-2">
-          <h3 className="font-semibold text-apple-text dark:text-apple-dark-text">最近记录</h3>
+          <h3 className="font-semibold text-apple-text dark:text-apple-dark-text">{hasActiveFilter ? '筛选结果' : '最近记录'}</h3>
           <button onClick={() => navigate('/statistics')} className="text-xs text-apple-blue font-medium">查看全部</button>
         </div>
+        {(showSearch || searchQuery || filterCategory || filterDateFrom || filterDateTo) && (
+          <p className="px-4 pt-2 pb-1 text-xs text-apple-subtext">
+            筛选结果 {filteredRecords.length} 条
+          </p>
+        )}
         <div className="divide-y divide-apple-separator dark:divide-apple-dark-separator">
-          {records.slice(0, 10).map(r => (
-            <div key={r.id} onClick={() => setSelectedRecord(r)} className="flex items-center gap-3 px-4 py-3 apple-btn"
+          {(searchQuery || filterCategory || filterDateFrom || filterDateTo ? filteredRecords : records.slice(0, 10)).map(r => (
+            <div key={r.id} onClick={() => setSelectedRecord(r)} className="flex items-center gap-3 px-4 py-3 apple-btn hover:bg-black/[0.03] dark:hover:bg-white/[0.04] active:bg-black/[0.06] dark:active:bg-white/[0.08] transition-colors"
               style={{ cursor: 'pointer' }}>
               <div className="w-10 h-10 rounded-full flex items-center justify-center text-lg"
                 style={{ background: r.type === 'expense' ? 'rgba(255,59,48,0.08)' : 'rgba(52,199,89,0.08)' }}>
@@ -144,7 +377,10 @@ export default function Dashboard() {
               </span>
             </div>
           ))}
-          {records.length === 0 && (
+          {(searchQuery || filterCategory || filterDateFrom || filterDateTo) && filteredRecords.length === 0 && (
+            <p className="text-sm text-apple-subtext text-center py-8">没有找到匹配的记录</p>
+          )}
+          {records.length === 0 && !searchQuery && !filterCategory && !filterDateFrom && !filterDateTo && (
             <p className="text-sm text-apple-subtext text-center py-8">还没有记录，点击下方 + 记一笔吧</p>
           )}
         </div>
@@ -153,8 +389,8 @@ export default function Dashboard() {
       {/* Record Action Modal */}
       {selectedRecord && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
-          <div className="fixed inset-0 bg-black/20" onClick={() => setSelectedRecord(null)} />
-          <div className="relative bg-white dark:bg-gray-800 rounded-3xl w-full overflow-y-auto shadow-xl"
+          <div className="fixed inset-0 bg-black/20 fade-enter" onClick={() => setSelectedRecord(null)} />
+          <div className="relative bg-white dark:bg-gray-800 rounded-3xl w-full overflow-y-auto shadow-xl modal-enter"
             style={{ maxWidth: 340, maxHeight: '80vh' }}>
             <div className="p-6">
               <button onClick={() => setSelectedRecord(null)} className="absolute top-3 right-3 w-8 h-8 rounded-full flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/10 apple-btn">

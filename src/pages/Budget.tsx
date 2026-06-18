@@ -102,7 +102,7 @@ export default function BudgetPage() {
               return (
                 <div key={b.id} className="px-4 py-3">
                   <div className="flex items-center justify-between mb-2">
-                    <button onClick={() => openEdit(b)} className="flex items-center gap-2 apple-btn flex-1 min-w-0 text-left">
+                    <button onClick={() => openEdit(b)} className="flex items-center gap-2 apple-btn flex-1 min-w-0 text-left px-2 py-1 -mx-2 rounded-xl hover:bg-black/[0.03] dark:hover:bg-white/[0.04] active:bg-black/[0.06] dark:active:bg-white/[0.08] transition-colors">
                       <span>{getCategoryIcon(b.category)}</span>
                       <span className="text-sm font-medium text-apple-text dark:text-apple-dark-text">{b.category}</span>
                     </button>
@@ -136,8 +136,8 @@ export default function BudgetPage() {
       {/* Add/Edit Budget Modal */}
       {showForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
-          <div className="fixed inset-0 bg-black/20" onClick={() => { setShowForm(false); setEditId(null); }} />
-          <div className="relative bg-white dark:bg-gray-800 rounded-3xl w-full overflow-y-auto shadow-xl"
+          <div className="fixed inset-0 bg-black/20 fade-enter" onClick={() => { setShowForm(false); setEditId(null); }} />
+          <div className="relative bg-white dark:bg-gray-800 rounded-3xl w-full overflow-y-auto shadow-xl modal-enter"
             style={{ maxWidth: 360, maxHeight: '80vh' }}>
             <div className="p-6">
               <h3 className="text-lg font-bold text-apple-text dark:text-apple-dark-text mb-4">
