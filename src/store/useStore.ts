@@ -11,12 +11,14 @@ interface AppState {
   darkMode: boolean;
   customExpenseCategories: Category[];
   customIncomeCategories: Category[];
+  dailyBudgets: Record<string, number>;
   addRecord: (r: Omit<ExpenseRecord, 'id' | 'createdAt'>) => void;
   deleteRecord: (id: string) => void;
   updateRecord: (id: string, data: Partial<Omit<ExpenseRecord, 'id' | 'createdAt'>>) => void;
   addBudget: (b: Omit<Budget, 'id' | 'spent'>) => void;
   updateBudget: (id: string, data: Partial<Budget>) => void;
   deleteBudget: (id: string) => void;
+  setDailyBudget: (date: string, amount: number) => void;
   toggleDarkMode: () => void;
   addCategory: (type: 'expense' | 'income', cat: Category) => void;
   updateCategory: (type: 'expense' | 'income', oldName: string, cat: Category) => void;
@@ -33,7 +35,7 @@ interface AppState {
   exportData: () => string;
 }
 
-function loadData(): { records: ExpenseRecord[]; budgets: Budget[]; darkMode: boolean; customExpenseCategories: Category[]; customIncomeCategories: Category[] } {
+function loadData(): { records: ExpenseRecord[]; budgets: Budget[]; darkMode: boolean; customExpenseCategories: Category[]; customIncomeCategories: Category[]; dailyBudgets: Record<string, number> } {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
@@ -44,13 +46,14 @@ function loadData(): { records: ExpenseRecord[]; budgets: Budget[]; darkMode: bo
         darkMode: parsed.darkMode ?? false,
         customExpenseCategories: parsed.customExpenseCategories || [],
         customIncomeCategories: parsed.customIncomeCategories || [],
+        dailyBudgets: parsed.dailyBudgets || {},
       };
     }
   } catch { /* ignore */ }
-  return { records: [], budgets: [], darkMode: false, customExpenseCategories: [], customIncomeCategories: [] };
+  return { records: [], budgets: [], darkMode: false, customExpenseCategories: [], customIncomeCategories: [], dailyBudgets: {} };
 }
 
-function saveData(state: { records: ExpenseRecord[]; budgets: Budget[]; darkMode: boolean; customExpenseCategories: Category[]; customIncomeCategories: Category[] }) {
+function saveData(state: { records: ExpenseRecord[]; budgets: Budget[]; darkMode: boolean; customExpenseCategories: Category[]; customIncomeCategories: Category[]; dailyBudgets: Record<string, number> }) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 }
 
@@ -62,6 +65,7 @@ export const useStore = create<AppState>((set, get) => ({
   darkMode: initial.darkMode,
   customExpenseCategories: initial.customExpenseCategories,
   customIncomeCategories: initial.customIncomeCategories,
+  dailyBudgets: initial.dailyBudgets,
 
   addRecord: (r) => set((s) => {
     const record: ExpenseRecord = { ...r as ExpenseRecord, id: generateId(), createdAt: Date.now() };
@@ -103,6 +107,12 @@ export const useStore = create<AppState>((set, get) => ({
 
   toggleDarkMode: () => set((s) => {
     const next = { ...s, darkMode: !s.darkMode };
+    saveData(next);
+    return next;
+  }),
+
+  setDailyBudget: (date, amount) => set((s) => {
+    const next = { ...s, dailyBudgets: { ...s.dailyBudgets, [date]: amount } };
     saveData(next);
     return next;
   }),
