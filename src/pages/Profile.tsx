@@ -105,14 +105,14 @@ export default function Profile() {
   const getCap = async () => {
     if (!capFilesystem) capFilesystem = await import('@capacitor/filesystem');
     if (!capShare) capShare = await import('@capacitor/share');
-    return { Filesystem: capFilesystem.Filesystem, Directory: capFilesystem.Directory, Share: capShare.Share };
+    return { Filesystem: capFilesystem.Filesystem, Directory: capFilesystem.Directory, Encoding: capFilesystem.Encoding, Share: capShare.Share };
   };
 
   const handleExport = async () => {
-    const csv = '﻿' + exportData();
+    const csv = exportData();
     try {
-      const { Filesystem, Directory, Share } = await getCap();
-      const r = await Filesystem.writeFile({ path: 'export.csv', data: csv, directory: Directory.Cache });
+      const { Filesystem, Directory, Encoding, Share } = await getCap();
+      const r = await Filesystem.writeFile({ path: 'export.csv', data: csv, directory: Directory.Cache, encoding: Encoding.UTF8 });
       await Share.share({ files: [r.uri] });
     } catch {
       window.location.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
@@ -120,13 +120,13 @@ export default function Profile() {
   };
 
   const handleExportJSON = async () => {
-    const json = exportJSON();
+    const json = '﻿' + exportJSON();
     try {
-      const { Filesystem, Directory, Share } = await getCap();
-      const r = await Filesystem.writeFile({ path: 'export.json', data: json, directory: Directory.Cache });
+      const { Filesystem, Directory, Encoding, Share } = await getCap();
+      const r = await Filesystem.writeFile({ path: 'export.json', data: json, directory: Directory.Cache, encoding: Encoding.UTF8 });
       await Share.share({ files: [r.uri] });
     } catch {
-      window.location.href = 'data:application/json;charset=utf-8,' + encodeURIComponent(json);
+      window.location.href = 'data:application/json;charset=utf-8,' + encodeURIComponent(exportJSON());
     }
   };
 

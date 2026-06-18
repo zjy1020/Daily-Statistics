@@ -238,7 +238,7 @@ export const useStore = create<AppState>((set, get) => ({
     const rows = records.map(r =>
       `${r.date},${r.time || ''},${r.type === 'expense' ? '支出' : '收入'},${r.category},${r.amount},${r.note}`
     );
-    return [header, ...rows].join('\n');
+    return '﻿' + [header, ...rows].join('\n');
   },
 
   exportJSON: () => {
