@@ -29,6 +29,7 @@ jobs:
           npm run build
           npx cap add android
           npx cap sync android
+          bash scripts/copy-icons.sh
 
       - name: Build APK
         run: |
