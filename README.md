@@ -45,22 +45,7 @@ npm run preview
 
 ## 打包 Android APK
 
-需要有 Android Studio 和 JDK 环境。
-
-```bash
-# 构建 Web 应用
-npm run build
-
-# 同步到 Android 项目
-npx cap copy android
-
-# 用 Android Studio 打开 android 目录
-npx cap open android
-```
-
-在 Android Studio 中: **Build → Build Bundle(s) / APK(s) → Build APK(s)**
-
-APK 文件生成在 `android/app/build/outputs/apk/debug/`。
+在 GitHub Actions 手动运行 **Build APK** 工作流，自动构建并生成 APK 下载。
 
 > 全离线可用，无需网络。数据存储在设备本地。
 
