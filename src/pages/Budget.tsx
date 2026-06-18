@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { Plus, Trash2, PiggyBank, Check, Target } from 'lucide-react';
+import { Plus, Trash2, PiggyBank, Check } from 'lucide-react';
 import { useStore } from '../store/useStore';
-import { formatCurrency, getThisMonth, getToday } from '../utils/helpers';
+import { formatCurrency, getThisMonth } from '../utils/helpers';
 import type { Budget as BudgetType } from '../types';
 
 export default function BudgetPage() {
@@ -13,9 +13,6 @@ export default function BudgetPage() {
   const getCategoryTotals = useStore(s => s.getCategoryTotals);
   const getCategoryIcon = useStore(s => s.getCategoryIcon);
   const getExpenseCategories = useStore(s => s.getExpenseCategories);
-  const dailyBudgets = useStore(s => s.dailyBudgets);
-  const setDailyBudget = useStore(s => s.setDailyBudget);
-  const getTodayTotal = useStore(s => s.getTodayTotal);
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [category, setCategory] = useState('餐饮');
@@ -25,18 +22,8 @@ export default function BudgetPage() {
   const totalBudget = budgets.reduce((s, b) => s + b.amount, 0);
   const totalSpent = getMonthlyExpense();
   const catTotals = getCategoryTotals(month, 'expense') as Record<string, number>;
-  const catSpent = (cat: string) => catTotals[cat] || 0;
 
-  // Daily budget
-  const today = getToday();
-  const todayExpense = getTodayTotal('expense');
-  const dailyBudget = dailyBudgets[today] || 0;
-  const remainingDaily = dailyBudget - todayExpense;
-  const dailyPct = dailyBudget > 0 ? Math.min((todayExpense / dailyBudget) * 100, 100) : 0;
-  const dateObj = new Date();
-  const dateLabel = `${dateObj.getFullYear()}年${dateObj.getMonth() + 1}月${dateObj.getDate()}日`;
-  const [dailyInput, setDailyInput] = useState(dailyBudget > 0 ? String(dailyBudget) : '');
-  const [editing, setEditing] = useState(dailyBudget === 0);
+  const catSpent = (cat: string) => catTotals[cat] || 0;
 
   const openAdd = () => {
     setEditId(null);
@@ -65,13 +52,6 @@ export default function BudgetPage() {
     setAmount('');
   };
 
-  const handleSaveDaily = () => {
-    const val = parseFloat(dailyInput);
-    if (!val || val <= 0) return;
-    setDailyBudget(today, val);
-    setEditing(false);
-  };
-
   return (
     <div className="px-4 pt-12 stagger">
       {/* Header */}
@@ -85,112 +65,12 @@ export default function BudgetPage() {
         </button>
       </div>
 
-      {/* Daily Budget */}
-      <div className="apple-card p-6 mb-4">
-        <div className="flex items-center gap-2 mb-4">
-          <div className="w-10 h-10 rounded-full bg-apple-orange/10 flex items-center justify-center">
-            <Target size={20} color="#ff9f0a" />
-          </div>
-          <div>
-            <p className="text-sm font-semibold text-apple-text dark:text-apple-dark-text">今日预算</p>
-            <p className="text-xs text-apple-subtext dark:text-apple-dark-subtext">{dateLabel}</p>
-          </div>
-        </div>
-
-        {editing ? (
-          <>
-            <div className="flex items-center justify-center gap-3 mb-4">
-              <button onClick={() => {
-                const v = parseFloat(dailyInput) || 0;
-                const dec = v >= 100 ? 100 : v >= 10 ? 10 : 1;
-                setDailyInput(String(Math.max(0, v - dec)));
-              }}
-                className="w-9 h-9 rounded-full flex items-center justify-center apple-btn shrink-0"
-                style={{ background: 'rgba(60,60,67,0.06)' }}>
-                <span className="text-lg text-apple-text dark:text-apple-dark-text leading-none">−</span>
-              </button>
-              <div className="flex items-center">
-                <span className="text-xl font-bold text-apple-text dark:text-apple-dark-text">¥</span>
-                <input type="number" value={dailyInput} onChange={e => setDailyInput(e.target.value)}
-                  placeholder="今日预算"
-                  autoFocus
-                  className="text-2xl font-bold text-center bg-transparent outline-none w-32 text-apple-text dark:text-apple-dark-text [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" />
-              </div>
-              <button onClick={() => {
-                const v = parseFloat(dailyInput) || 0;
-                const inc = v >= 100 ? 100 : v >= 10 ? 10 : 1;
-                setDailyInput(String(v + inc));
-              }}
-                className="w-9 h-9 rounded-full flex items-center justify-center apple-btn shrink-0"
-                style={{ background: 'rgba(60,60,67,0.06)' }}>
-                <span className="text-lg text-apple-text dark:text-apple-dark-text leading-none">+</span>
-              </button>
-            </div>
-            <button onClick={handleSaveDaily} disabled={dailyInput !== '' && parseFloat(dailyInput) <= 0}
-              className="w-full py-3 rounded-2xl font-semibold text-sm text-white apple-btn disabled:opacity-40"
-              style={{
-                background: 'linear-gradient(135deg, #ff9f0a, #ffb340)',
-                boxShadow: '0 4px 12px rgba(255,159,10,0.3)',
-              }}>
-              <Check size={16} strokeWidth={3} />
-              设置今日预算
-            </button>
-          </>
-        ) : (
-          <>
-            {dailyBudget > 0 && (
-              <>
-                {/* Budget display */}
-                <div className="flex items-center justify-center gap-6 mb-4">
-                  <div className="text-center">
-                    <p className="text-[10px] text-apple-subtext dark:text-apple-dark-subtext">今日预算</p>
-                    <p className="text-2xl font-bold text-apple-orange">{formatCurrency(dailyBudget)}</p>
-                  </div>
-                  <div className="w-px h-10 bg-apple-separator dark:bg-apple-dark-separator" />
-                  <div className="text-center">
-                    <p className="text-[10px] text-apple-subtext dark:text-apple-dark-subtext">今日支出</p>
-                    <p className={`text-2xl font-bold ${todayExpense > 0 ? 'text-expense' : 'text-apple-text dark:text-apple-dark-text'}`}>{formatCurrency(todayExpense)}</p>
-                  </div>
-                  <div className="w-px h-10 bg-apple-separator dark:bg-apple-dark-separator" />
-                  <div className="text-center">
-                    <p className="text-[10px] text-apple-subtext dark:text-apple-dark-subtext">剩余</p>
-                    <p className={`text-2xl font-bold ${remainingDaily >= 0 ? 'text-income' : 'text-expense'}`}>{formatCurrency(remainingDaily)}</p>
-                  </div>
-                </div>
-                {/* Progress bar */}
-                <div className="h-2 rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden mb-3">
-                  <div className="h-full rounded-full transition-all duration-500"
-                    style={{
-                      width: `${dailyPct}%`,
-                      background: dailyPct >= 100
-                        ? 'linear-gradient(90deg, #ff9f0a, #ff3b30)'
-                        : 'linear-gradient(90deg, #ff9f0a, #ffb340)',
-                    }} />
-                </div>
-                <div className="flex justify-between items-center">
-                  <p className="text-xs text-apple-subtext dark:text-apple-dark-subtext">
-                    已使用 {formatCurrency(todayExpense)} / {formatCurrency(dailyBudget)}
-                    {dailyBudget > 0 && todayExpense > dailyBudget && (
-                      <span className="text-expense font-medium"> · 超支 {formatCurrency(todayExpense - dailyBudget)}</span>
-                    )}
-                  </p>
-                  <button onClick={() => setEditing(true)}
-                    className="text-xs text-apple-orange font-medium apple-btn">
-                    修改
-                  </button>
-                </div>
-              </>
-            )}
-          </>
-        )}
-      </div>
-
       {/* Budget Overview */}
       <div className="apple-card p-6 mb-4 text-center">
         <div className="w-14 h-14 rounded-full bg-apple-blue/10 flex items-center justify-center mx-auto mb-3">
           <PiggyBank size={28} color="#4f7cff" />
         </div>
-        <p className="text-sm text-apple-subtext dark:text-apple-dark-subtext mb-1">月度预算总额</p>
+        <p className="text-sm text-apple-subtext dark:text-apple-dark-subtext mb-1">预算总额</p>
         <p className="text-3xl font-bold text-apple-text dark:text-apple-dark-text mb-3">{formatCurrency(totalBudget)}</p>
         <div className="h-2 rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden mb-2">
           <div className="h-full rounded-full transition-all duration-500"
@@ -289,7 +169,7 @@ export default function BudgetPage() {
 
       {/* Add/Edit Budget Modal */}
       {showForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center px-6" style={{ paddingTop: '6vh', paddingBottom: 'calc(6vh + 80px)' }}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
           <div className="fixed inset-0 bg-black/20 fade-enter" onClick={() => { setShowForm(false); setEditId(null); }} />
           <div className="relative bg-white dark:bg-gray-800 rounded-3xl w-full overflow-y-auto shadow-xl modal-enter"
             style={{ maxWidth: 360, maxHeight: '80vh' }}>
