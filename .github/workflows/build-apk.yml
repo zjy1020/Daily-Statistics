@@ -27,6 +27,7 @@ jobs:
         run: |
           npm install
           npm run build
+          npx cap add android
           npx cap sync android
 
       - name: Build APK
