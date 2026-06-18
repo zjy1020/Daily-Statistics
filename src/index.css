@@ -105,3 +105,15 @@ body {
 .fade-enter {
   animation: fadeIn 0.2s ease;
 }
+
+/* Print styles */
+@media print {
+  nav, .fixed, .apple-btn:active { display: none !important; }
+  body { background: white !important; }
+  .dark body { background: white !important; }
+  .apple-card { background: white !important; border: 1px solid #eee !important; box-shadow: none !important; }
+  .dark .apple-card { background: white !important; border: 1px solid #eee !important; }
+  .stagger > * { animation: none !important; opacity: 1 !important; }
+  .page-enter { animation: none !important; }
+  .stagger { padding-bottom: 0 !important; }
+}

@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, LineChart, Line } from 'recharts';
-import { CalendarDays, ChevronLeft, ChevronRight, Edit3, Trash2, X } from 'lucide-react';
+import { CalendarDays, ChevronLeft, ChevronRight, Edit3, Trash2, X, FileDown } from 'lucide-react';
 import { useStore } from '../store/useStore';
 import { formatCurrency, formatDate, getThisMonth, getToday, getWeekRange, getYear } from '../utils/helpers';
 import type { ExpenseRecord } from '../types';
@@ -181,16 +181,26 @@ export default function Statistics() {
     itemStyle: { color: darkMode ? '#98989d' : '#6e6e73', fontSize: 12 } as React.CSSProperties,
   };
 
+  const exportPDF = () => {
+    window.print();
+  };
+
   return (
     <div className="px-4 pt-12 stagger">
       <div className="flex items-center justify-between mb-2">
         <h1 className="text-2xl font-bold text-apple-text dark:text-apple-dark-text">统计</h1>
-        <button onClick={() => setShowCalendar(!showCalendar)}
-          className={`w-9 h-9 rounded-full flex items-center justify-center apple-btn shadow-sm transition-all ${
-            showCalendar ? 'bg-apple-blue text-white' : 'bg-white/80 dark:bg-gray-800 text-apple-subtext dark:text-apple-dark-subtext'
-          }`}>
-          <CalendarDays size={18} />
-        </button>
+        <div className="flex gap-2">
+          <button onClick={exportPDF}
+            className="w-9 h-9 rounded-full flex items-center justify-center apple-btn shadow-sm bg-white/80 dark:bg-gray-800 text-apple-subtext dark:text-apple-dark-subtext hover:text-apple-blue transition-colors">
+            <FileDown size={18} />
+          </button>
+          <button onClick={() => setShowCalendar(!showCalendar)}
+            className={`w-9 h-9 rounded-full flex items-center justify-center apple-btn shadow-sm transition-all ${
+              showCalendar ? 'bg-apple-blue text-white' : 'bg-white/80 dark:bg-gray-800 text-apple-subtext dark:text-apple-dark-subtext'
+            }`}>
+            <CalendarDays size={18} />
+          </button>
+        </div>
       </div>
       <p className="text-sm text-apple-subtext dark:text-apple-dark-subtext mb-5">
         总收入 {formatCurrency(income)} · 总支出 {formatCurrency(expense)} · 结余 {formatCurrency(income - expense)}
