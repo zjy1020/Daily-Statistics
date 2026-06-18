@@ -12,6 +12,9 @@ interface AppState {
   customExpenseCategories: Category[];
   customIncomeCategories: Category[];
   dailyBudgets: Record<string, number>;
+  userName: string;
+  avatar: string;
+  bio: string;
   addRecord: (r: Omit<ExpenseRecord, 'id' | 'createdAt'>) => void;
   deleteRecord: (id: string) => void;
   updateRecord: (id: string, data: Partial<Omit<ExpenseRecord, 'id' | 'createdAt'>>) => void;
@@ -20,6 +23,10 @@ interface AppState {
   deleteBudget: (id: string) => void;
   setDailyBudget: (date: string, amount: number) => void;
   toggleDarkMode: () => void;
+  setUserName: (name: string) => void;
+  setAvatar: (emoji: string) => void;
+  setBio: (bio: string) => void;
+  clearAllData: () => void;
   addCategory: (type: 'expense' | 'income', cat: Category) => void;
   updateCategory: (type: 'expense' | 'income', oldName: string, cat: Category) => void;
   deleteCategory: (type: 'expense' | 'income', name: string) => void;
@@ -37,7 +44,7 @@ interface AppState {
   importJSON: (json: string) => string;
 }
 
-function loadData(): { records: ExpenseRecord[]; budgets: Budget[]; darkMode: boolean; customExpenseCategories: Category[]; customIncomeCategories: Category[]; dailyBudgets: Record<string, number> } {
+function loadData(): { records: ExpenseRecord[]; budgets: Budget[]; darkMode: boolean; customExpenseCategories: Category[]; customIncomeCategories: Category[]; dailyBudgets: Record<string, number>; userName: string; avatar: string; bio: string } {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
@@ -49,13 +56,16 @@ function loadData(): { records: ExpenseRecord[]; budgets: Budget[]; darkMode: bo
         customExpenseCategories: parsed.customExpenseCategories || [],
         customIncomeCategories: parsed.customIncomeCategories || [],
         dailyBudgets: parsed.dailyBudgets || {},
+        userName: parsed.userName || '',
+        avatar: parsed.avatar || '👤',
+        bio: parsed.bio || '',
       };
     }
   } catch { /* ignore */ }
-  return { records: [], budgets: [], darkMode: false, customExpenseCategories: [], customIncomeCategories: [], dailyBudgets: {} };
+  return { records: [], budgets: [], darkMode: false, customExpenseCategories: [], customIncomeCategories: [], dailyBudgets: {}, userName: '', avatar: '👤', bio: '' };
 }
 
-function saveData(state: { records: ExpenseRecord[]; budgets: Budget[]; darkMode: boolean; customExpenseCategories: Category[]; customIncomeCategories: Category[]; dailyBudgets: Record<string, number> }) {
+function saveData(state: { records: ExpenseRecord[]; budgets: Budget[]; darkMode: boolean; customExpenseCategories: Category[]; customIncomeCategories: Category[]; dailyBudgets: Record<string, number>; userName: string; avatar: string; bio: string }) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 }
 
@@ -68,6 +78,9 @@ export const useStore = create<AppState>((set, get) => ({
   customExpenseCategories: initial.customExpenseCategories,
   customIncomeCategories: initial.customIncomeCategories,
   dailyBudgets: initial.dailyBudgets,
+  userName: initial.userName,
+  avatar: initial.avatar,
+  bio: initial.bio,
 
   addRecord: (r) => set((s) => {
     const record: ExpenseRecord = { ...r as ExpenseRecord, id: generateId(), createdAt: Date.now() };
@@ -115,6 +128,30 @@ export const useStore = create<AppState>((set, get) => ({
 
   setDailyBudget: (date, amount) => set((s) => {
     const next = { ...s, dailyBudgets: { ...s.dailyBudgets, [date]: amount } };
+    saveData(next);
+    return next;
+  }),
+
+  setUserName: (name) => set((s) => {
+    const next = { ...s, userName: name };
+    saveData(next);
+    return next;
+  }),
+
+  setAvatar: (emoji) => set((s) => {
+    const next = { ...s, avatar: emoji };
+    saveData(next);
+    return next;
+  }),
+
+  setBio: (bio) => set((s) => {
+    const next = { ...s, bio };
+    saveData(next);
+    return next;
+  }),
+
+  clearAllData: () => set((s) => {
+    const next = { ...s, records: [], budgets: [], dailyBudgets: {}, customExpenseCategories: [], customIncomeCategories: [], userName: '', avatar: '👤', bio: '' };
     saveData(next);
     return next;
   }),
@@ -205,8 +242,8 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
   exportJSON: () => {
-    const { records, budgets, dailyBudgets, customExpenseCategories, customIncomeCategories, darkMode } = get();
-    return JSON.stringify({ records, budgets, dailyBudgets, customExpenseCategories, customIncomeCategories, darkMode, exportedAt: Date.now() });
+    const { records, budgets, dailyBudgets, customExpenseCategories, customIncomeCategories, darkMode, userName, avatar, bio } = get();
+    return JSON.stringify({ records, budgets, dailyBudgets, customExpenseCategories, customIncomeCategories, darkMode, userName, avatar, bio, exportedAt: Date.now() });
   },
 
   importJSON: (json) => {
@@ -222,6 +259,9 @@ export const useStore = create<AppState>((set, get) => ({
           customExpenseCategories: data.customExpenseCategories || [],
           customIncomeCategories: data.customIncomeCategories || [],
           darkMode: data.darkMode ?? false,
+          userName: data.userName || '',
+          avatar: data.avatar || '👤',
+          bio: data.bio || '',
         };
         saveData(next);
         return next;

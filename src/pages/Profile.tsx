@@ -1,4 +1,4 @@
-import { Moon, Sun, Download, Upload, Info, ChevronRight, Plus, X, Check } from 'lucide-react';
+import { Moon, Sun, Download, Upload, Info, ChevronRight, Plus, X, Check, Pencil, Trash2 } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { useStore } from '../store/useStore';
 import type { Category } from '../types';
@@ -21,9 +21,27 @@ export default function Profile() {
   const fileRef = useRef<HTMLInputElement>(null);
   const jsonFileRef = useRef<HTMLInputElement>(null);
   const [importMsg, setImportMsg] = useState('');
+  const userName = useStore(s => s.userName);
+  const setUserName = useStore(s => s.setUserName);
+  const avatar = useStore(s => s.avatar);
+  const setAvatar = useStore(s => s.setAvatar);
+  const clearAllData = useStore(s => s.clearAllData);
+  const [editingName, setEditingName] = useState(false);
+  const [nameInput, setNameInput] = useState('');
+  const [showAvatarPicker, setShowAvatarPicker] = useState(false);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [showAbout, setShowAbout] = useState(false);
+  const avatarFileRef = useRef<HTMLInputElement>(null);
+  const bio = useStore(s => s.bio);
+  const setBio = useStore(s => s.setBio);
+  const [editingBio, setEditingBio] = useState(false);
+  const [bioInput, setBioInput] = useState('');
+
+  const AVATAR_EMOJIS = ['👤', '😀', '😎', '🤩', '😺', '🐶', '🐼', '🦊', '🐯', '🦄', '🌈', '⭐', '🔥', '💪', '🎵', '🎨', '🌸', '🍀', '🌊', '🏔️', '🚀', '🏀', '⚽', '🎮', '📚', '💻', '📷', '🎧'];
 
   // Category management
   const records = useStore(s => s.records);
+  const budgets = useStore(s => s.budgets);
   const customExpenseCategories = useStore(s => s.customExpenseCategories);
   const customIncomeCategories = useStore(s => s.customIncomeCategories);
   const addCategory = useStore(s => s.addCategory);
@@ -200,9 +218,15 @@ export default function Profile() {
       right: <button onClick={handleImportJSON} className="text-apple-blue text-sm font-medium">恢复 JSON</button>,
     },
     {
+      icon: Trash2,
+      label: '清除所有数据',
+      right: <button onClick={() => setShowClearConfirm(true)} className="text-apple-red text-sm font-medium">清除</button>,
+    },
+    {
       icon: Info,
       label: '关于应用',
       right: <ChevronRight size={16} color="#6e6e73" />,
+      onClick: () => setShowAbout(true),
     },
   ];
 
@@ -210,11 +234,57 @@ export default function Profile() {
     <div className="px-4 pt-12 stagger">
       {/* Profile Header */}
       <div className="flex flex-col items-center mb-8">
-        <div className="w-20 h-20 rounded-full bg-gradient-to-br from-apple-blue to-blue-400 flex items-center justify-center text-3xl font-bold text-white shadow-lg mb-3">
-          U
-        </div>
-        <h2 className="text-xl font-bold text-apple-text dark:text-apple-dark-text">用户</h2>
-        <p className="text-sm text-apple-subtext dark:text-apple-dark-subtext">user@email.com</p>
+        <button onClick={() => setShowAvatarPicker(true)}
+          className="w-20 h-20 rounded-full bg-gradient-to-br from-apple-blue to-blue-400 flex items-center justify-center text-3xl text-white shadow-lg mb-3 apple-btn relative group overflow-hidden">
+          {avatar.startsWith('data:') ? (
+            <img src={avatar} alt="avatar" className="w-full h-full object-cover" />
+          ) : (
+            avatar || '👤'
+          )}
+          <div className="absolute inset-0 rounded-full bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
+            <Pencil size={18} className="text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+          </div>
+        </button>
+        {editingName ? (
+          <div className="flex items-center gap-2">
+            <input type="text" value={nameInput} onChange={e => setNameInput(e.target.value)}
+              className="px-3 py-1 rounded-xl bg-gray-100 dark:bg-gray-700 text-lg font-bold text-apple-text dark:text-apple-dark-text outline-none text-center w-40"
+              autoFocus onKeyDown={e => { if (e.key === 'Enter') { setUserName(nameInput); setEditingName(false); } }} />
+            <button onClick={() => { setUserName(nameInput); setEditingName(false); }}
+              className="p-1.5 rounded-full bg-apple-blue text-white apple-btn">
+              <Check size={14} strokeWidth={3} />
+            </button>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2">
+            <h2 className="text-xl font-bold text-apple-text dark:text-apple-dark-text">{userName || '用户'}</h2>
+            <button onClick={() => { setNameInput(userName); setEditingName(true); }}
+              className="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 apple-btn">
+              <Pencil size={14} color="#6e6e73" />
+            </button>
+          </div>
+        )}
+        {/* Bio */}
+        {editingBio ? (
+          <div className="flex flex-col items-center gap-2 mt-2 w-full max-w-xs">
+            <textarea value={bioInput} onChange={e => setBioInput(e.target.value)}
+              className="w-full px-4 py-2 rounded-2xl bg-gray-100 dark:bg-gray-700 text-sm text-apple-text dark:text-apple-dark-text outline-none resize-none text-center"
+              rows={2} maxLength={100}
+              onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); setBio(bioInput); setEditingBio(false); } }} />
+            <button onClick={() => { setBio(bioInput); setEditingBio(false); }}
+              className="px-4 py-1.5 rounded-full bg-apple-blue text-white text-xs font-semibold apple-btn">
+              保存
+            </button>
+          </div>
+        ) : (
+          <div className="flex items-center gap-1.5 mt-1 max-w-xs">
+            <p className="text-sm text-apple-subtext dark:text-apple-dark-subtext text-center">{bio || '添加个人简介...'}</p>
+            <button onClick={() => { setBioInput(bio); setEditingBio(true); }}
+              className="p-0.5 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 apple-btn shrink-0">
+              <Pencil size={12} color="#6e6e73" />
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Settings */}
@@ -277,7 +347,8 @@ export default function Profile() {
         {items.map((item, i) => {
           const Icon = item.icon;
           return (
-            <div key={i} className="flex items-center justify-between px-4 py-3.5 border-b border-apple-separator dark:border-apple-dark-separator last:border-b-0">
+            <div key={i} onClick={item.onClick || undefined}
+              className={`flex items-center justify-between px-4 py-3.5 border-b border-apple-separator dark:border-apple-dark-separator last:border-b-0 ${item.onClick ? 'apple-btn cursor-pointer' : ''}`}>
               <div className="flex items-center gap-3">
                 <Icon size={20} color="#4f7cff" />
                 <span className="text-sm text-apple-text dark:text-apple-dark-text">{item.label}</span>
@@ -289,7 +360,7 @@ export default function Profile() {
       </div>
 
       <p className="text-center text-xs text-apple-subtext dark:text-apple-dark-subtext">
-        记账 App v1.0.0 · 数据存储于本地
+        记账 App v1.0.0
       </p>
 
       {/* Category Add/Edit Modal */}
@@ -367,6 +438,119 @@ export default function Profile() {
                   删除
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Clear Data Confirmation */}
+      {showClearConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-6" style={{ paddingTop: '6vh', paddingBottom: 'calc(6vh + 80px)' }}>
+          <div className="fixed inset-0 bg-black/20 fade-enter" onClick={() => setShowClearConfirm(false)} />
+          <div className="relative bg-white dark:bg-gray-800 rounded-3xl w-full shadow-xl modal-enter" style={{ maxWidth: 320 }}>
+            <div className="p-6 text-center">
+              <div className="text-4xl mb-3">⚠️</div>
+              <p className="text-sm text-apple-text dark:text-apple-dark-text mb-1 font-semibold">确定清除所有数据？</p>
+              <p className="text-xs text-apple-subtext dark:text-apple-dark-subtext mb-4">此操作不可恢复，所有记录、预算、分类将被删除</p>
+              <div className="flex gap-3">
+                <button onClick={() => setShowClearConfirm(false)}
+                  className="flex-1 py-3 rounded-2xl font-semibold text-sm bg-gray-100 dark:bg-gray-700 text-apple-text apple-btn">
+                  取消
+                </button>
+                <button onClick={() => { clearAllData(); setShowClearConfirm(false); }}
+                  className="flex-1 py-3 rounded-2xl font-semibold text-sm text-white bg-expense apple-btn">
+                  确认清除
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Avatar Picker */}
+      <input ref={avatarFileRef} type="file" accept="image/*" onChange={(e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          const dataUrl = ev.target?.result as string;
+          setAvatar(dataUrl);
+          setShowAvatarPicker(false);
+          e.target.value = '';
+        };
+        reader.readAsDataURL(file);
+      }} className="hidden" />
+      {showAvatarPicker && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-6" style={{ paddingTop: '6vh', paddingBottom: 'calc(6vh + 80px)' }}>
+          <div className="fixed inset-0 bg-black/20 fade-enter" onClick={() => setShowAvatarPicker(false)} />
+          <div className="relative bg-white dark:bg-gray-800 rounded-3xl w-full shadow-xl modal-enter flex flex-col overflow-hidden"
+            style={{ maxWidth: 360, maxHeight: '60vh' }}>
+            <div className="p-6 pb-0 shrink-0">
+              <h3 className="text-lg font-bold text-apple-text dark:text-apple-dark-text mb-4 text-center">选择头像</h3>
+              <button onClick={() => avatarFileRef.current?.click()}
+                className="w-full py-2.5 rounded-2xl text-sm font-semibold text-white apple-btn mb-4 flex items-center justify-center gap-2"
+                style={{
+                  background: 'linear-gradient(135deg, #4f7cff, #6b9bff)',
+                  boxShadow: '0 4px 12px rgba(79,124,255,0.3)',
+                }}>
+                <Upload size={16} />
+                上传图片
+              </button>
+              <p className="text-xs text-apple-subtext text-center mb-2 font-medium">或选择表情</p>
+            </div>
+            <div className="px-6 overflow-y-auto min-h-0 flex-1 pb-6">
+              <div className="grid grid-cols-6 gap-2">
+                {AVATAR_EMOJIS.map(e => (
+                  <button key={e} onClick={() => { setAvatar(e); setShowAvatarPicker(false); }}
+                    className={`w-full aspect-square rounded-xl flex items-center justify-center text-xl apple-btn ${
+                      avatar === e ? 'bg-apple-blue/10 border border-apple-blue/30 ring-2 ring-apple-blue/20' : 'hover:bg-gray-100 dark:hover:bg-gray-700'
+                    }`}>
+                    {e}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* About Modal */}
+      {showAbout && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-6" style={{ paddingTop: '6vh', paddingBottom: 'calc(6vh + 80px)' }}>
+          <div className="fixed inset-0 bg-black/20 fade-enter" onClick={() => setShowAbout(false)} />
+          <div className="relative bg-white dark:bg-gray-800 rounded-3xl w-full shadow-xl modal-enter overflow-hidden" style={{ maxWidth: 340 }}>
+            <div className="p-6 text-center">
+              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-apple-blue to-blue-400 flex items-center justify-center text-2xl text-white shadow-lg mx-auto mb-4">
+                💰
+              </div>
+              <h3 className="text-xl font-bold text-apple-text dark:text-apple-dark-text mb-1">记账 App</h3>
+              <p className="text-sm text-apple-subtext mb-4">v1.0.0</p>
+              <div className="space-y-2 text-left bg-gray-50 dark:bg-gray-700/50 rounded-2xl p-4 mb-4">
+                <div className="flex justify-between text-sm">
+                  <span className="text-apple-subtext">总记录数</span>
+                  <span className="text-apple-text dark:text-apple-dark-text font-medium">{records.length} 条</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-apple-subtext">预算数</span>
+                  <span className="text-apple-text dark:text-apple-dark-text font-medium">{budgets.length} 个</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-apple-subtext">自定义分类</span>
+                  <span className="text-apple-text dark:text-apple-dark-text font-medium">{customExpenseCategories.length + customIncomeCategories.length} 个</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-apple-subtext">数据存储</span>
+                  <span className="text-apple-text dark:text-apple-dark-text font-medium">本地存储</span>
+                </div>
+              </div>
+              <button onClick={() => setShowAbout(false)}
+                className="w-full py-3 rounded-2xl font-semibold text-sm text-white apple-btn"
+                style={{
+                  background: 'linear-gradient(135deg, #4f7cff, #6b9bff)',
+                  boxShadow: '0 4px 12px rgba(79,124,255,0.3)',
+                }}>
+                知道了
+              </button>
             </div>
           </div>
         </div>
