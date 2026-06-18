@@ -1,6 +1,7 @@
 import { Moon, Sun, Download, Upload, Info, ChevronRight, Plus, X, Check, Pencil, Trash2 } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { useStore } from '../store/useStore';
+import { formatCurrency } from '../utils/helpers';
 import type { Category } from '../types';
 
 const CATEGORY_EMOJIS = [
@@ -515,34 +516,47 @@ export default function Profile() {
       )}
 
       {/* About Modal */}
-      {showAbout && (
+      {showAbout && (() => {
+        const totalExpense = records.filter(r => r.type === 'expense').reduce((s, r) => s + r.amount, 0);
+        const totalIncome = records.filter(r => r.type === 'income').reduce((s, r) => s + r.amount, 0);
+        const firstRecord = records.length > 0 ? records.reduce((a, b) => a.createdAt < b.createdAt ? a : b) : null;
+        const daysSince = firstRecord ? Math.floor((Date.now() - firstRecord.createdAt) / 86400000) : 0;
+        return (
         <div className="fixed inset-0 z-50 flex items-center justify-center px-6" style={{ paddingTop: '6vh', paddingBottom: 'calc(6vh + 80px)' }}>
           <div className="fixed inset-0 bg-black/20 fade-enter" onClick={() => setShowAbout(false)} />
           <div className="relative bg-white dark:bg-gray-800 rounded-3xl w-full shadow-xl modal-enter overflow-hidden" style={{ maxWidth: 340 }}>
-            <div className="p-6 text-center">
-              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-apple-blue to-blue-400 flex items-center justify-center text-2xl text-white shadow-lg mx-auto mb-4">
-                💰
+            <div className="pt-8 pb-2 px-6 text-center">
+              <img src="/favicon.png" alt="icon" className="w-16 h-16 mx-auto mb-3 rounded-2xl shadow-lg object-cover" />
+              <h3 className="text-xl font-bold text-apple-text dark:text-apple-dark-text mb-0.5">每日记账</h3>
+              <p className="text-xs text-apple-subtext mb-5">v1.0.0</p>
+              <div className="bg-gray-50 dark:bg-gray-700/50 rounded-2xl p-4 mb-4 text-left space-y-3">
+                {firstRecord && (
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-apple-subtext">已记账</span>
+                    <span className="text-apple-text dark:text-apple-dark-text font-semibold">{daysSince} 天</span>
+                  </div>
+                )}
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-apple-subtext">总支出</span>
+                  <span className="text-expense font-semibold">{formatCurrency(totalExpense)}</span>
+                </div>
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-apple-subtext">总收入</span>
+                  <span className="text-income font-semibold">{formatCurrency(totalIncome)}</span>
+                </div>
+                <div className="border-t border-apple-separator dark:border-apple-dark-separator pt-3">
+                  <div className="flex justify-between text-xs">
+                    <span className="text-apple-subtext">记录</span>
+                    <span className="text-apple-text dark:text-apple-dark-text font-medium">{records.length} 笔</span>
+                  </div>
+                  <div className="flex justify-between text-xs mt-1.5">
+                    <span className="text-apple-subtext">预算</span>
+                    <span className="text-apple-text dark:text-apple-dark-text font-medium">{budgets.length} 个</span>
+                  </div>
+                </div>
               </div>
-              <h3 className="text-xl font-bold text-apple-text dark:text-apple-dark-text mb-1">记账 App</h3>
-              <p className="text-sm text-apple-subtext mb-4">v1.0.0</p>
-              <div className="space-y-2 text-left bg-gray-50 dark:bg-gray-700/50 rounded-2xl p-4 mb-4">
-                <div className="flex justify-between text-sm">
-                  <span className="text-apple-subtext">总记录数</span>
-                  <span className="text-apple-text dark:text-apple-dark-text font-medium">{records.length} 条</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-apple-subtext">预算数</span>
-                  <span className="text-apple-text dark:text-apple-dark-text font-medium">{budgets.length} 个</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-apple-subtext">自定义分类</span>
-                  <span className="text-apple-text dark:text-apple-dark-text font-medium">{customExpenseCategories.length + customIncomeCategories.length} 个</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-apple-subtext">数据存储</span>
-                  <span className="text-apple-text dark:text-apple-dark-text font-medium">本地存储</span>
-                </div>
-              </div>
+            </div>
+            <div className="px-6 pb-6">
               <button onClick={() => setShowAbout(false)}
                 className="w-full py-3 rounded-2xl font-semibold text-sm text-white apple-btn"
                 style={{
@@ -554,7 +568,8 @@ export default function Profile() {
             </div>
           </div>
         </div>
-      )}
+        );
+      })()}
     </div>
   );
 }
