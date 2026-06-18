@@ -9,6 +9,8 @@ export default function AddRecord() {
   const navigate = useNavigate();
   const location = useLocation();
   const editRecord = (location.state as any)?.editRecord;
+  const addRecord = useStore(s => s.addRecord);
+  const updateRecord = useStore(s => s.updateRecord);
   const isEdit = !!editRecord;
 
   const [type, setType] = useState<RecordType>(editRecord?.type || 'expense');

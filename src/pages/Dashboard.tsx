@@ -16,6 +16,7 @@ export default function Dashboard() {
   const getTodayTotal = useStore(s => s.getTodayTotal);
   const getCategoryTotals = useStore(s => s.getCategoryTotals);
   const deleteRecord = useStore(s => s.deleteRecord);
+  const updateRecord = useStore(s => s.updateRecord);
   const budgets = useStore(s => s.budgets);
   const getCategoryIcon = useStore(s => s.getCategoryIcon);
   const getExpenseCategories = useStore(s => s.getExpenseCategories);
