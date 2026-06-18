@@ -99,16 +99,32 @@ export default function Profile() {
     }
   };
 
-  const handleExport = () => {
-    const csv = exportData();
-    const encoded = 'data:text/csv;charset=utf-8,' + encodeURIComponent('﻿' + csv);
-    window.location.href = encoded;
+  const handleExport = async () => {
+    const csv = '﻿' + exportData();
+    const name = `记账数据_${new Date().toISOString().slice(0, 10)}.csv`;
+    try {
+      const { Filesystem, Directory } = await import('@capacitor/filesystem');
+      const { Share } = await import('@capacitor/share');
+      await Filesystem.writeFile({ path: name, data: btoa(unescape(encodeURIComponent(csv))), directory: Directory.Cache });
+      await Share.share({ url: (await Filesystem.getUri({ path: name, directory: Directory.Cache })).uri });
+    } catch {
+      const encoded = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+      window.location.href = encoded;
+    }
   };
 
-  const handleExportJSON = () => {
+  const handleExportJSON = async () => {
     const json = exportJSON();
-    const encoded = 'data:application/json;charset=utf-8,' + encodeURIComponent(json);
-    window.location.href = encoded;
+    const name = `记账备份_${new Date().toISOString().slice(0, 10)}.json`;
+    try {
+      const { Filesystem, Directory } = await import('@capacitor/filesystem');
+      const { Share } = await import('@capacitor/share');
+      await Filesystem.writeFile({ path: name, data: json, directory: Directory.Cache });
+      await Share.share({ url: (await Filesystem.getUri({ path: name, directory: Directory.Cache })).uri });
+    } catch {
+      const encoded = 'data:application/json;charset=utf-8,' + encodeURIComponent(json);
+      window.location.href = encoded;
+    }
   };
 
   const handleImportJSON = () => {
