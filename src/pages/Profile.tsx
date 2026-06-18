@@ -304,8 +304,8 @@ export default function Profile() {
       </div>
 
       {/* Settings */}
-      <input ref={fileRef} type="file" accept=".csv" onChange={handleFileChange} className="hidden" />
-      <input ref={jsonFileRef} type="file" accept=".json" onChange={handleJSONFileChange} className="hidden" />
+      <input ref={fileRef} type="file" accept="text/csv,text/comma-separated-values,application/csv,.csv,text/plain" onChange={handleFileChange} className="hidden" />
+      <input ref={jsonFileRef} type="file" accept="application/json,.json" onChange={handleJSONFileChange} className="hidden" />
       {importMsg && (
         <div className="apple-card p-4 mb-4 text-center">
           <p className="text-sm text-apple-text dark:text-apple-dark-text font-medium">{importMsg}</p>
