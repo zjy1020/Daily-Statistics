@@ -1,6 +1,7 @@
 import { create } from 'zustand';
-import type { ExpenseRecord, Budget } from '../types';
+import type { ExpenseRecord, Budget, Category } from '../types';
 import { getToday, getThisMonth, generateId } from '../utils/helpers';
+import { expenseCategories as defaultExpense, incomeCategories as defaultIncome } from '../data/categories';
 
 const STORAGE_KEY = 'apple-expense-data';
 
@@ -8,6 +9,8 @@ interface AppState {
   records: ExpenseRecord[];
   budgets: Budget[];
   darkMode: boolean;
+  customExpenseCategories: Category[];
+  customIncomeCategories: Category[];
   addRecord: (r: Omit<ExpenseRecord, 'id' | 'createdAt'>) => void;
   deleteRecord: (id: string) => void;
   updateRecord: (id: string, data: Partial<Omit<ExpenseRecord, 'id' | 'createdAt'>>) => void;
@@ -15,24 +18,30 @@ interface AppState {
   updateBudget: (id: string, data: Partial<Budget>) => void;
   deleteBudget: (id: string) => void;
   toggleDarkMode: () => void;
+  addCategory: (type: 'expense' | 'income', cat: Category) => void;
+  updateCategory: (type: 'expense' | 'income', oldName: string, cat: Category) => void;
+  deleteCategory: (type: 'expense' | 'income', name: string) => void;
   getMonthlyExpense: (month?: string) => number;
   getMonthlyIncome: (month?: string) => number;
   getTodayTotal: (type: 'expense' | 'income') => number;
   getCategoryTotals: (month: string, type: 'expense' | 'income') => Record<string, number>;
   getDailyTotals: (month: string) => Record<string, number>;
   getMonthlyTrend: () => { month: string; expense: number; income: number }[];
+  getCategoryIcon: (name: string) => string;
+  getExpenseCategories: () => Category[];
+  getIncomeCategories: () => Category[];
   exportData: () => string;
 }
 
-function loadData(): { records: ExpenseRecord[]; budgets: Budget[]; darkMode: boolean } {
+function loadData(): { records: ExpenseRecord[]; budgets: Budget[]; darkMode: boolean; customExpenseCategories: Category[]; customIncomeCategories: Category[] } {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) return JSON.parse(raw);
   } catch { /* ignore */ }
-  return { records: [], budgets: [], darkMode: false };
+  return { records: [], budgets: [], darkMode: false, customExpenseCategories: [], customIncomeCategories: [] };
 }
 
-function saveData(state: { records: ExpenseRecord[]; budgets: Budget[]; darkMode: boolean }) {
+function saveData(state: { records: ExpenseRecord[]; budgets: Budget[]; darkMode: boolean; customExpenseCategories: Category[]; customIncomeCategories: Category[] }) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 }
 
@@ -42,6 +51,8 @@ export const useStore = create<AppState>((set, get) => ({
   records: initial.records,
   budgets: initial.budgets,
   darkMode: initial.darkMode,
+  customExpenseCategories: initial.customExpenseCategories,
+  customIncomeCategories: initial.customIncomeCategories,
 
   addRecord: (r) => set((s) => {
     const record: ExpenseRecord = { ...r as ExpenseRecord, id: generateId(), createdAt: Date.now() };
@@ -83,6 +94,27 @@ export const useStore = create<AppState>((set, get) => ({
 
   toggleDarkMode: () => set((s) => {
     const next = { ...s, darkMode: !s.darkMode };
+    saveData(next);
+    return next;
+  }),
+
+  addCategory: (type, cat) => set((s) => {
+    const key = type === 'expense' ? 'customExpenseCategories' : 'customIncomeCategories';
+    const next = { ...s, [key]: [...s[key], cat] };
+    saveData(next);
+    return next;
+  }),
+
+  updateCategory: (type, oldName, cat) => set((s) => {
+    const key = type === 'expense' ? 'customExpenseCategories' : 'customIncomeCategories';
+    const next = { ...s, [key]: s[key].map(c => c.name === oldName ? cat : c) };
+    saveData(next);
+    return next;
+  }),
+
+  deleteCategory: (type, name) => set((s) => {
+    const key = type === 'expense' ? 'customExpenseCategories' : 'customIncomeCategories';
+    const next = { ...s, [key]: s[key].filter(c => c.name !== name) };
     saveData(next);
     return next;
   }),
@@ -149,5 +181,18 @@ export const useStore = create<AppState>((set, get) => ({
       `${r.date},${r.time || ''},${r.type === 'expense' ? '支出' : '收入'},${r.category},${r.amount},${r.note}`
     );
     return [header, ...rows].join('\n');
+  },
+
+  getCategoryIcon: (name) => {
+    const all: Category[] = [...defaultExpense, ...defaultIncome, ...get().customExpenseCategories, ...get().customIncomeCategories];
+    return all.find(c => c.name === name)?.icon || '📦';
+  },
+
+  getExpenseCategories: () => {
+    return [...defaultExpense, ...get().customExpenseCategories];
+  },
+
+  getIncomeCategories: () => {
+    return [...defaultIncome, ...get().customIncomeCategories];
   },
 }));

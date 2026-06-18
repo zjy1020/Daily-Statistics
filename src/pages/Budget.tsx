@@ -2,8 +2,6 @@ import { useState } from 'react';
 import { Plus, Trash2, PiggyBank, Check } from 'lucide-react';
 import { useStore } from '../store/useStore';
 import { formatCurrency, getThisMonth } from '../utils/helpers';
-import { expenseCategories } from '../data/categories';
-import { getCategoryIcon } from '../data/categories';
 import type { Budget as BudgetType } from '../types';
 
 export default function BudgetPage() {
@@ -13,6 +11,8 @@ export default function BudgetPage() {
   const deleteBudget = useStore(s => s.deleteBudget);
   const getMonthlyExpense = useStore(s => s.getMonthlyExpense);
   const getCategoryTotals = useStore(s => s.getCategoryTotals);
+  const getCategoryIcon = useStore(s => s.getCategoryIcon);
+  const getExpenseCategories = useStore(s => s.getExpenseCategories);
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [category, setCategory] = useState('餐饮');
@@ -89,6 +89,32 @@ export default function BudgetPage() {
         </p>
       </div>
 
+      {/* Budget Alerts */}
+      {(totalBudget > 0 && totalSpent / totalBudget >= 0.8) || budgets.some(b => { const p = catSpent(b.category); return b.amount > 0 && (p / b.amount) * 100 >= 80; }) ? (
+        <div className="apple-card p-4 mb-3" style={{ background: 'rgba(255,59,48,0.06)', borderColor: 'rgba(255,59,48,0.15)' }}>
+          <p className="text-xs font-semibold text-expense mb-1.5">⚠️ 预算提醒</p>
+          <div className="space-y-1">
+            {totalBudget > 0 && totalSpent / totalBudget >= 0.8 && (
+              <p className="text-xs text-apple-text dark:text-apple-dark-text">
+                总预算已使用 <span className="font-semibold">{((totalSpent / totalBudget) * 100).toFixed(0)}%</span>
+                {totalSpent >= totalBudget && <span className="text-expense font-semibold">（超支 {formatCurrency(totalSpent - totalBudget)}）</span>}
+              </p>
+            )}
+            {budgets.map(b => {
+              const spent = catSpent(b.category);
+              const pct = b.amount > 0 ? (spent / b.amount) * 100 : 0;
+              if (pct < 80) return null;
+              return (
+                <p key={b.id} className="text-xs text-apple-text dark:text-apple-dark-text">
+                  {getCategoryIcon(b.category)} {b.category} 已使用 <span className="font-semibold">{pct.toFixed(0)}%</span>
+                  {pct >= 100 && <span className="text-expense font-semibold">（超支 {formatCurrency(spent - b.amount)}）</span>}
+                </p>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
+
       {/* Budget List */}
       <div className="apple-card px-1 py-2 mb-4">
         <div className="px-4 py-2">
@@ -120,9 +146,17 @@ export default function BudgetPage() {
                   </div>
                   <div className="flex justify-between mt-1">
                     <span className="text-xs text-apple-subtext">已用 {formatCurrency(spent)}</span>
-                    <span className={`text-xs font-medium ${pct > 90 ? 'text-expense' : 'text-apple-subtext'}`}>
-                      {pct.toFixed(0)}%
-                    </span>
+                    <div className="flex items-center gap-1.5">
+                      {pct >= 100 && (
+                        <span className="text-[10px] font-semibold text-white bg-expense px-1.5 py-0.5 rounded-full">已超支</span>
+                      )}
+                      {pct >= 80 && pct < 100 && (
+                        <span className="text-[10px] font-semibold text-white bg-apple-orange px-1.5 py-0.5 rounded-full">即将超支</span>
+                      )}
+                      <span className={`text-xs font-medium ${pct > 90 ? 'text-expense' : 'text-apple-subtext'}`}>
+                        {pct.toFixed(0)}%
+                      </span>
+                    </div>
                   </div>
                 </div>
               );
@@ -144,7 +178,7 @@ export default function BudgetPage() {
                 {editId ? '编辑预算' : '新增预算'}
               </h3>
               <div className="grid grid-cols-4 gap-3 mb-4">
-                {expenseCategories.map(c => (
+                {getExpenseCategories().map(c => (
                   <button key={c.name} onClick={() => setCategory(c.name)}
                     className={`flex flex-col items-center gap-1 py-2 rounded-xl transition-all ${
                       category === c.name ? 'bg-apple-blue/10 border border-apple-blue/30' : ''

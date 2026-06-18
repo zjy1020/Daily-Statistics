@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { ArrowLeft, Check } from 'lucide-react';
 import { useStore } from '../store/useStore';
-import { expenseCategories, incomeCategories } from '../data/categories';
 import { getToday, getCurrentTime } from '../utils/helpers';
 import type { RecordType } from '../types';
 
@@ -21,7 +20,9 @@ export default function AddRecord() {
   const [date, setDate] = useState(editRecord?.date || getToday());
   const [time, setTime] = useState(editRecord?.time || getCurrentTime());
 
-  const cats = type === 'expense' ? expenseCategories : incomeCategories;
+  const getExpenseCategories = useStore(s => s.getExpenseCategories);
+  const getIncomeCategories = useStore(s => s.getIncomeCategories);
+  const cats = type === 'expense' ? getExpenseCategories() : getIncomeCategories();
 
   const handleSave = () => {
     const val = parseFloat(amount);

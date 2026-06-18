@@ -2,7 +2,6 @@ import { useNavigate } from 'react-router-dom';
 import { Search, Settings, TrendingUp, TrendingDown, Edit3, Trash2, X, SlidersHorizontal, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useStore } from '../store/useStore';
 import { formatCurrency, formatDate } from '../utils/helpers';
-import { getCategoryIcon, expenseCategories } from '../data/categories';
 import { getToday } from '../utils/helpers';
 import { useState, useMemo, useRef, useEffect } from 'react';
 import type { ExpenseRecord } from '../types';
@@ -18,6 +17,8 @@ export default function Dashboard() {
   const getCategoryTotals = useStore(s => s.getCategoryTotals);
   const deleteRecord = useStore(s => s.deleteRecord);
   const budgets = useStore(s => s.budgets);
+  const getCategoryIcon = useStore(s => s.getCategoryIcon);
+  const getExpenseCategories = useStore(s => s.getExpenseCategories);
   const [selectedRecord, setSelectedRecord] = useState<ExpenseRecord | null>(null);
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -27,6 +28,7 @@ export default function Dashboard() {
   const [showFilters, setShowFilters] = useState(false);
   const [pickerMonth, setPickerMonth] = useState(() => new Date());
   const [selectingPhase, setSelectingPhase] = useState<'start' | 'end'>('start');
+  const [catType, setCatType] = useState<'expense' | 'income'>('expense');
   const searchRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -74,7 +76,8 @@ export default function Dashboard() {
   const todayExpense = getTodayTotal('expense');
   const budgetTotal = budgets.reduce((s, b) => s + b.amount, 0);
   const budgetRemaining = Math.max(budgetTotal - monthExpense, 0);
-  const catTotals = getCategoryTotals(getToday().slice(0, 7), 'expense') as Record<string, number>;
+  const monthPrefix = getToday().slice(0, 7);
+  const catTotals = getCategoryTotals(monthPrefix, catType) as Record<string, number>;
   const catKeys = Object.keys(catTotals).sort((a, b) => catTotals[b] - catTotals[a]).slice(0, 5);
 
   return (
@@ -132,7 +135,7 @@ export default function Dashboard() {
                     }`}>
                     全部
                   </button>
-                  {expenseCategories.map(c => (
+                  {getExpenseCategories().map(c => (
                     <button key={c.name} onClick={() => setFilterCategory(filterCategory === c.name ? '' : c.name)}
                       className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${
                         filterCategory === c.name ? 'bg-apple-blue text-white' : 'bg-gray-100 dark:bg-gray-700 text-apple-subtext dark:text-apple-dark-subtext'
@@ -322,15 +325,52 @@ export default function Dashboard() {
         </div>
       </div>
 
+      {/* Budget Alerts on Dashboard */}
+      {(budgetTotal > 0 && monthExpense / budgetTotal >= 0.8) || budgets.some(b => { const p = getCategoryTotals(getToday().slice(0, 7), 'expense')[b.category] || 0; return b.amount > 0 && (p / b.amount) * 100 >= 80; }) ? (
+        <div className="apple-card p-4 mb-3" style={{ background: 'rgba(255,59,48,0.06)', borderColor: 'rgba(255,59,48,0.15)' }}>
+          <p className="text-xs font-semibold text-expense mb-1.5">⚠️ 预算提醒</p>
+          <div className="space-y-1">
+            {budgetTotal > 0 && monthExpense / budgetTotal >= 0.8 && (
+              <p className="text-xs text-apple-text dark:text-apple-dark-text">
+                总预算已使用 <span className="font-semibold">{((monthExpense / budgetTotal) * 100).toFixed(0)}%</span>
+                {monthExpense >= budgetTotal && <span className="text-expense font-semibold">（超支 {formatCurrency(monthExpense - budgetTotal)}）</span>}
+              </p>
+            )}
+            {budgets.map(b => {
+              const spent = getCategoryTotals(getToday().slice(0, 7), 'expense')[b.category] || 0;
+              const pct = b.amount > 0 ? (spent / b.amount) * 100 : 0;
+              if (pct < 80) return null;
+              return (
+                <p key={b.id} className="text-xs text-apple-text dark:text-apple-dark-text">
+                  {getCategoryIcon(b.category)} {b.category} 已使用 <span className="font-semibold">{pct.toFixed(0)}%</span>
+                  {pct >= 100 && <span className="text-expense font-semibold">（超支 {formatCurrency(spent - b.amount)}）</span>}
+                </p>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
+
       {/* Category Stats */}
       <div className="apple-card p-5 mb-3">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="font-semibold text-apple-text dark:text-apple-dark-text">消费分类</h3>
+          <h3 className="font-semibold text-apple-text dark:text-apple-dark-text">分类统计</h3>
+          <div className="flex bg-gray-100 dark:bg-gray-700 rounded-lg p-0.5">
+            <button onClick={() => setCatType('expense')}
+              className={`px-3 py-1 rounded-md text-xs font-medium transition-all ${
+                catType === 'expense' ? 'bg-white dark:bg-gray-600 text-apple-text dark:text-apple-dark-text shadow-sm' : 'text-apple-subtext'
+              }`}>支出</button>
+            <button onClick={() => setCatType('income')}
+              className={`px-3 py-1 rounded-md text-xs font-medium transition-all ${
+                catType === 'income' ? 'bg-white dark:bg-gray-600 text-apple-text dark:text-apple-dark-text shadow-sm' : 'text-apple-subtext'
+              }`}>收入</button>
+          </div>
         </div>
         <div className="space-y-3">
           {catKeys.length > 0 ? catKeys.map(cat => {
             const total = catTotals[cat];
-            const pct = monthExpense > 0 ? (total / monthExpense) * 100 : 0;
+            const catTotal = catType === 'expense' ? monthExpense : monthIncome;
+            const pct = catTotal > 0 ? (total / catTotal) * 100 : 0;
             return (
               <div key={cat}>
                 <div className="flex items-center justify-between mb-1">

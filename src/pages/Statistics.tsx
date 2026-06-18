@@ -4,7 +4,6 @@ import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, 
 import { CalendarDays, ChevronLeft, ChevronRight, Edit3, Trash2, X } from 'lucide-react';
 import { useStore } from '../store/useStore';
 import { formatCurrency, formatDate, getThisMonth, getToday } from '../utils/helpers';
-import { getCategoryIcon } from '../data/categories';
 import type { ExpenseRecord } from '../types';
 
 type Period = 'week' | 'month' | 'year';
@@ -15,6 +14,7 @@ export default function Statistics() {
   const navigate = useNavigate();
   const [period, setPeriod] = useState<Period>('month');
   const [chartType, setChartType] = useState<'pie' | 'bar' | 'line'>('pie');
+  const [dataType, setDataType] = useState<'expense' | 'income'>('expense');
   const [showCalendar, setShowCalendar] = useState(false);
   const [calendarDate, setCalendarDate] = useState(() => new Date());
   const [selectedDate, setSelectedDate] = useState(getToday());
@@ -27,6 +27,7 @@ export default function Statistics() {
   const getMonthlyIncome = useStore(s => s.getMonthlyIncome);
   const getMonthlyTrend = useStore(s => s.getMonthlyTrend);
   const darkMode = useStore(s => s.darkMode);
+  const getCategoryIcon = useStore(s => s.getCategoryIcon);
 
   const month = getThisMonth();
   const expense = getMonthlyExpense();
@@ -34,14 +35,14 @@ export default function Statistics() {
 
   // Chart data
   const categoryData = useMemo(() => {
-    const cats = getCategoryTotals(month, 'expense') as Record<string, number>;
+    const cats = getCategoryTotals(month, dataType) as Record<string, number>;
     const total = Object.values(cats).reduce((s, v) => s + v, 0);
     return Object.keys(cats).sort((a, b) => cats[b] - cats[a]).map(name => ({
       name,
       value: cats[name],
       pct: total > 0 ? ((cats[name] / total) * 100).toFixed(0) + '%' : '0%',
     }));
-  }, [records, month]);
+  }, [records, month, dataType]);
 
   const trendData = useMemo(() => {
     return getMonthlyTrend().map(d => ({
@@ -50,6 +51,34 @@ export default function Statistics() {
       income: d.income,
     }));
   }, [records]);
+
+  // Month-over-month comparison
+  const lastMonth = useMemo(() => {
+    const y = parseInt(month.slice(0, 4));
+    const m = parseInt(month.slice(5));
+    if (m === 1) return `${y - 1}-12`;
+    return `${y}-${String(m - 1).padStart(2, '0')}`;
+  }, [month]);
+
+  const lastExpense = getMonthlyExpense(lastMonth);
+  const lastIncome = getMonthlyIncome(lastMonth);
+  const expenseChange = lastExpense > 0 ? ((expense - lastExpense) / lastExpense) * 100 : (expense > 0 ? 100 : 0);
+  const incomeChange = lastIncome > 0 ? ((income - lastIncome) / lastIncome) * 100 : (income > 0 ? 100 : 0);
+
+  const catCompare = useMemo(() => {
+    const current = getCategoryTotals(month, dataType) as Record<string, number>;
+    const previous = getCategoryTotals(lastMonth, dataType) as Record<string, number>;
+    const allCats = new Set([...Object.keys(current), ...Object.keys(previous)]);
+    return Array.from(allCats)
+      .map(name => {
+        const cur = current[name] || 0;
+        const prev = previous[name] || 0;
+        const diff = cur - prev;
+        return { name, current: cur, previous: prev, diff, pct: prev > 0 ? ((diff / prev) * 100) : (cur > 0 ? 100 : 0) };
+      })
+      .filter(c => c.current > 0 || c.previous > 0)
+      .sort((a, b) => Math.abs(b.diff) - Math.abs(a.diff));
+  }, [records, month, lastMonth, dataType]);
 
   // Calendar data
   const dailyMap = useMemo(() => {
@@ -238,6 +267,18 @@ export default function Statistics() {
         </div>
       )}
 
+      {/* Type Toggle: 支出 / 收入 */}
+      <div className="apple-card p-1 flex mb-3">
+        {(['expense', 'income'] as const).map(t => (
+          <button key={t} onClick={() => setDataType(t)}
+            className={`flex-1 py-2 rounded-full text-sm font-medium transition-colors ${
+              dataType === t ? 'bg-apple-blue text-white shadow-sm' : 'text-apple-subtext dark:text-apple-dark-subtext'
+            }`}>
+            {t === 'expense' ? '支出' : '收入'}
+          </button>
+        ))}
+      </div>
+
       {/* Chart Type Tabs */}
       <div className="flex gap-2 mb-4">
         {(['pie', 'bar', 'line'] as const).map(t => (
@@ -262,7 +303,7 @@ export default function Statistics() {
                     <Cell key={i} fill={COLORS[i % COLORS.length]} />
                   ))}
                 </Pie>
-                <Tooltip {...tooltipProps} formatter={(v: number) => [formatCurrency(v), '金额']} />
+                <Tooltip {...tooltipProps} formatter={(v: any) => [formatCurrency(Number(v)), '金额']} />
               </PieChart>
             </ResponsiveContainer>
           ) : (
@@ -277,7 +318,7 @@ export default function Statistics() {
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(60,60,67,0.06)" />
                 <XAxis dataKey="name" tick={{ fontSize: 11 }} />
                 <YAxis tick={{ fontSize: 11 }} />
-                <Tooltip {...tooltipProps} cursor={false} formatter={(v: number) => [formatCurrency(v), '金额']} />
+                <Tooltip {...tooltipProps} cursor={false} formatter={(v: any) => [formatCurrency(Number(v)), '金额']} />
                 <Bar dataKey="value" radius={[6, 6, 0, 0]} name="金额">
                   {categoryData.map((_, i) => (
                     <Cell key={i} fill={COLORS[i % COLORS.length]} />
@@ -297,7 +338,7 @@ export default function Statistics() {
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(60,60,67,0.06)" />
                 <XAxis dataKey="month" tick={{ fontSize: 11 }} />
                 <YAxis tick={{ fontSize: 11 }} />
-                <Tooltip {...tooltipProps} cursor={false} formatter={(v: number, n: string) => [formatCurrency(v), n === 'expense' ? '支出' : '收入']} />
+                <Tooltip {...tooltipProps} cursor={false} formatter={(v: any, n: any) => [formatCurrency(Number(v)), n === 'expense' ? '支出' : '收入']} />
                 <Line type="monotone" dataKey="expense" stroke="#ff3b30" strokeWidth={2} dot={false} name="支出" />
                 <Line type="monotone" dataKey="income" stroke="#34c759" strokeWidth={2} dot={false} name="收入" />
               </LineChart>
@@ -324,6 +365,60 @@ export default function Statistics() {
           </div>
         ) : (
           <p className="text-sm text-apple-subtext text-center py-4">暂无记录</p>
+        )}
+      </div>
+
+      {/* Month-over-Month Comparison */}
+      <div className="apple-card p-5 mb-4">
+        <h3 className="text-sm font-semibold text-apple-text dark:text-apple-dark-text mb-3">月度对比</h3>
+        <div className="grid grid-cols-2 gap-4 mb-4">
+          <div className="flex-1">
+            <p className="text-xs text-apple-subtext mb-1">本月支出</p>
+            <p className="text-lg font-bold text-apple-text dark:text-apple-dark-text">{formatCurrency(expense)}</p>
+            <div className={`flex items-center gap-0.5 mt-0.5 ${expenseChange >= 0 ? 'text-expense' : 'text-income'}`}>
+              <span className="text-xs font-medium">{expenseChange >= 0 ? '↑' : '↓'}</span>
+              <span className="text-xs">{Math.abs(expenseChange).toFixed(1)}%</span>
+              <span className="text-xs text-apple-subtext ml-0.5">vs 上月</span>
+            </div>
+          </div>
+          <div className="flex-1">
+            <p className="text-xs text-apple-subtext mb-1">上月支出</p>
+            <p className="text-lg font-bold text-apple-text dark:text-apple-dark-text">{formatCurrency(lastExpense)}</p>
+          </div>
+          <div className="flex-1">
+            <p className="text-xs text-apple-subtext mb-1">本月收入</p>
+            <p className="text-lg font-bold text-apple-text dark:text-apple-dark-text">{formatCurrency(income)}</p>
+            <div className={`flex items-center gap-0.5 mt-0.5 ${incomeChange >= 0 ? 'text-income' : 'text-expense'}`}>
+              <span className="text-xs font-medium">{incomeChange >= 0 ? '↑' : '↓'}</span>
+              <span className="text-xs">{Math.abs(incomeChange).toFixed(1)}%</span>
+              <span className="text-xs text-apple-subtext ml-0.5">vs 上月</span>
+            </div>
+          </div>
+          <div className="flex-1">
+            <p className="text-xs text-apple-subtext mb-1">上月收入</p>
+            <p className="text-lg font-bold text-apple-text dark:text-apple-dark-text">{formatCurrency(lastIncome)}</p>
+          </div>
+        </div>
+        {catCompare.length > 0 && (
+          <>
+            <p className="text-xs text-apple-subtext mb-2 font-medium">{dataType === 'expense' ? '支出分类变化' : '收入分类变化'}</p>
+            <div className="space-y-2">
+              {catCompare.slice(0, 8).map(c => (
+                <div key={c.name} className="flex items-center gap-2">
+                  <span className="text-sm shrink-0">{getCategoryIcon(c.name)}</span>
+                  <span className="text-xs text-apple-text dark:text-apple-dark-text flex-1 min-w-0 truncate">{c.name}</span>
+                  <div className="flex items-center gap-2 text-xs">
+                    <span className="text-apple-subtext">{formatCurrency(c.previous)}</span>
+                    <span className="text-apple-subtext">→</span>
+                    <span className="font-medium text-apple-text dark:text-apple-dark-text">{formatCurrency(c.current)}</span>
+                    <span className={`font-medium ${c.diff > 0 ? 'text-expense' : c.diff < 0 ? 'text-income' : 'text-apple-subtext'}`}>
+                      {c.diff > 0 ? '+' : ''}{formatCurrency(c.diff)}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
         )}
       </div>
 
