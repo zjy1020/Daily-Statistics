@@ -101,24 +101,14 @@ export default function Profile() {
 
   const handleExport = () => {
     const csv = exportData();
-    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `记账数据_${new Date().toISOString().slice(0, 10)}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    const encoded = 'data:text/csv;charset=utf-8,' + encodeURIComponent('﻿' + csv);
+    window.location.href = encoded;
   };
 
   const handleExportJSON = () => {
     const json = exportJSON();
-    const blob = new Blob([json], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `记账备份_${new Date().toISOString().slice(0, 10)}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
+    const encoded = 'data:application/json;charset=utf-8,' + encodeURIComponent(json);
+    window.location.href = encoded;
   };
 
   const handleImportJSON = () => {
