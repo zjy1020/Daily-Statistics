@@ -15,8 +15,11 @@ export default function Profile() {
   const darkMode = useStore(s => s.darkMode);
   const toggleDarkMode = useStore(s => s.toggleDarkMode);
   const exportData = useStore(s => s.exportData);
+  const exportJSON = useStore(s => s.exportJSON);
+  const importJSON = useStore(s => s.importJSON);
   const addRecord = useStore(s => s.addRecord);
   const fileRef = useRef<HTMLInputElement>(null);
+  const jsonFileRef = useRef<HTMLInputElement>(null);
   const [importMsg, setImportMsg] = useState('');
 
   // Category management
@@ -86,6 +89,34 @@ export default function Profile() {
     a.download = `记账数据_${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  const handleExportJSON = () => {
+    const json = exportJSON();
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `记账备份_${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleImportJSON = () => {
+    jsonFileRef.current?.click();
+  };
+
+  const handleJSONFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const text = ev.target?.result as string;
+      const result = importJSON(text);
+      setImportMsg(result);
+      e.target.value = '';
+    };
+    reader.readAsText(file, 'UTF-8');
   };
 
   const handleImport = () => {
@@ -159,6 +190,16 @@ export default function Profile() {
       right: <button onClick={handleImport} className="text-apple-blue text-sm font-medium">导入 CSV</button>,
     },
     {
+      icon: Download,
+      label: '备份数据',
+      right: <button onClick={handleExportJSON} className="text-apple-blue text-sm font-medium">备份 JSON</button>,
+    },
+    {
+      icon: Upload,
+      label: '恢复数据',
+      right: <button onClick={handleImportJSON} className="text-apple-blue text-sm font-medium">恢复 JSON</button>,
+    },
+    {
       icon: Info,
       label: '关于应用',
       right: <ChevronRight size={16} color="#6e6e73" />,
@@ -178,6 +219,7 @@ export default function Profile() {
 
       {/* Settings */}
       <input ref={fileRef} type="file" accept=".csv" onChange={handleFileChange} className="hidden" />
+      <input ref={jsonFileRef} type="file" accept=".json" onChange={handleJSONFileChange} className="hidden" />
       {importMsg && (
         <div className="apple-card p-4 mb-4 text-center">
           <p className="text-sm text-apple-text dark:text-apple-dark-text font-medium">{importMsg}</p>
@@ -252,10 +294,10 @@ export default function Profile() {
 
       {/* Category Add/Edit Modal */}
       {showCatModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-6" style={{ paddingTop: '6vh', paddingBottom: 'calc(6vh + 80px)' }}>
           <div className="fixed inset-0 bg-black/20 fade-enter" onClick={() => { setShowCatModal(false); setEditCat(null); }} />
-          <div className="relative bg-white dark:bg-gray-800 rounded-3xl w-full shadow-xl modal-enter flex flex-col"
-            style={{ maxWidth: 360, maxHeight: '85vh' }}>
+          <div className="relative bg-white dark:bg-gray-800 rounded-3xl w-full shadow-xl modal-enter flex flex-col overflow-hidden"
+            style={{ maxWidth: 360, maxHeight: '75vh' }}>
             {/* Fixed header */}
             <div className="p-6 pb-0 shrink-0">
               <h3 className="text-lg font-bold text-apple-text dark:text-apple-dark-text mb-4">
@@ -267,9 +309,9 @@ export default function Profile() {
             </div>
 
             {/* Scrollable emoji picker */}
-            <div className="px-6 overflow-y-auto min-h-0">
+            <div className="px-6 overflow-y-auto min-h-0 flex-1">
               <p className="text-xs text-apple-subtext mb-2 font-medium text-center">选择图标</p>
-              <div className="grid grid-cols-6 gap-2">
+              <div className="grid grid-cols-6 gap-2 pb-1">
                 {CATEGORY_EMOJIS.map(e => (
                   <button key={e} onClick={() => setCatIcon(e)}
                     className={`w-full aspect-square rounded-xl flex items-center justify-center text-lg apple-btn ${
@@ -305,7 +347,7 @@ export default function Profile() {
 
       {/* Delete confirmation */}
       {deleteConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-6" style={{ paddingTop: '6vh', paddingBottom: 'calc(6vh + 80px)' }}>
           <div className="fixed inset-0 bg-black/20 fade-enter" onClick={() => setDeleteConfirm(null)} />
           <div className="relative bg-white dark:bg-gray-800 rounded-3xl w-full shadow-xl modal-enter" style={{ maxWidth: 320 }}>
             <div className="p-6 text-center">

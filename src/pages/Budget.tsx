@@ -1,7 +1,7 @@
-import { useState } from 'react';
-import { Plus, Trash2, PiggyBank, Check } from 'lucide-react';
+import { useState, useRef } from 'react';
+import { Plus, Trash2, PiggyBank, Check, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useStore } from '../store/useStore';
-import { formatCurrency, getThisMonth } from '../utils/helpers';
+import { formatCurrency, getThisMonth, getToday } from '../utils/helpers';
 import type { Budget as BudgetType } from '../types';
 
 export default function BudgetPage() {
@@ -13,6 +13,7 @@ export default function BudgetPage() {
   const getCategoryTotals = useStore(s => s.getCategoryTotals);
   const getCategoryIcon = useStore(s => s.getCategoryIcon);
   const getExpenseCategories = useStore(s => s.getExpenseCategories);
+  const records = useStore(s => s.records);
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [category, setCategory] = useState('餐饮');
@@ -24,6 +25,48 @@ export default function BudgetPage() {
   const catTotals = getCategoryTotals(month, 'expense') as Record<string, number>;
 
   const catSpent = (cat: string) => catTotals[cat] || 0;
+
+  // Daily budget
+  const today = getToday();
+  const dailyBudgets = useStore(s => s.dailyBudgets);
+  const setDailyBudget = useStore(s => s.setDailyBudget);
+  const [selectedDate, setSelectedDate] = useState(today);
+  const dailyBudgetAmt = dailyBudgets[selectedDate] || 0;
+  const dailyExpense = records
+    .filter(r => r.type === 'expense' && r.date === selectedDate)
+    .reduce((s, r) => s + r.amount, 0);
+  const [dailyInput, setDailyInput] = useState(dailyBudgetAmt > 0 ? String(dailyBudgetAmt) : '');
+
+  // Reset input when selectedDate changes
+  const prevDateRef = useRef(selectedDate);
+  if (prevDateRef.current !== selectedDate) {
+    prevDateRef.current = selectedDate;
+    const amt = dailyBudgets[selectedDate] || 0;
+    setDailyInput(amt > 0 ? String(amt) : '');
+  }
+
+  const handleSaveDaily = () => {
+    const val = parseFloat(dailyInput);
+    if (!val || val <= 0) return;
+    setDailyBudget(selectedDate, val);
+  };
+
+  const dailyPct = dailyBudgetAmt > 0 ? Math.min((dailyExpense / dailyBudgetAmt) * 100, 100) : 0;
+  const dailyRemaining = dailyBudgetAmt - dailyExpense;
+
+  const goPrevDay = () => {
+    const d = new Date(selectedDate);
+    d.setDate(d.getDate() - 1);
+    setSelectedDate(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`);
+  };
+
+  const goNextDay = () => {
+    const d = new Date(selectedDate);
+    d.setDate(d.getDate() + 1);
+    setSelectedDate(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`);
+  };
+
+  const isToday = selectedDate === today;
 
   const openAdd = () => {
     setEditId(null);
@@ -63,6 +106,66 @@ export default function BudgetPage() {
           <Plus size={16} strokeWidth={3} />
           预算
         </button>
+      </div>
+
+      {/* Daily Budget Card */}
+      <div className="apple-card p-5 mb-3">
+        {/* Date navigator */}
+        <div className="flex items-center justify-between mb-3">
+          <button onClick={goPrevDay} className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/10 apple-btn">
+            <ChevronLeft size={16} className="text-apple-text dark:text-apple-dark-text" />
+          </button>
+          <div className="text-center">
+            <p className="text-xs text-apple-subtext dark:text-apple-dark-subtext">
+              {isToday ? '今日预算' : '预算'} · {selectedDate}
+            </p>
+            <p className="text-lg font-bold text-apple-text dark:text-apple-dark-text mt-0.5">
+              {dailyBudgetAmt > 0 ? formatCurrency(dailyBudgetAmt) : '未设置'}
+            </p>
+          </div>
+          <button onClick={goNextDay} disabled={isToday}
+            className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/10 apple-btn disabled:opacity-30">
+            <ChevronRight size={16} className="text-apple-text dark:text-apple-dark-text" />
+          </button>
+        </div>
+        <div className="flex items-center justify-between mb-3 px-1">
+          <div className="text-center flex-1">
+            <p className="text-xs text-apple-subtext dark:text-apple-dark-subtext mb-0.5">已花费</p>
+            <p className="text-lg font-bold" style={{ color: dailyRemaining < 0 ? '#ff3b30' : '#1d1d1f' }}>
+              {formatCurrency(dailyExpense)}
+            </p>
+          </div>
+          {dailyBudgetAmt > 0 && (
+            <div className="text-center flex-1">
+              <p className="text-xs text-apple-subtext dark:text-apple-dark-subtext mb-0.5">剩余</p>
+              <p className={`text-lg font-bold ${dailyRemaining >= 0 ? 'text-apple-blue' : 'text-expense'}`}>
+                {dailyRemaining >= 0 ? formatCurrency(dailyRemaining) : '-' + formatCurrency(Math.abs(dailyRemaining))}
+              </p>
+            </div>
+          )}
+        </div>
+        {dailyBudgetAmt > 0 && (
+          <div className="h-1.5 rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden mb-3">
+            <div className="h-full rounded-full transition-all duration-500"
+              style={{
+                width: `${dailyPct}%`,
+                background: dailyPct >= 100
+                  ? 'linear-gradient(90deg, #ff9f0a, #ff3b30)'
+                  : 'linear-gradient(90deg, #4f7cff, #6b9bff)',
+              }} />
+          </div>
+        )}
+        <div className="flex gap-2">
+          <input type="number" value={dailyInput} onChange={e => setDailyInput(e.target.value)}
+            placeholder={`输入${isToday ? '今日' : '当日'}预算`}
+            className="flex-1 px-3 py-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-xs text-center outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" />
+          <button onClick={handleSaveDaily} disabled={!dailyInput || parseFloat(dailyInput) <= 0}
+            className="px-4 py-2 rounded-xl bg-apple-blue text-white text-xs font-semibold apple-btn disabled:opacity-40 flex items-center gap-1"
+            style={{ boxShadow: '0 3px 10px rgba(79,124,255,0.3)' }}>
+            <Check size={13} strokeWidth={3} />
+            设定
+          </button>
+        </div>
       </div>
 
       {/* Budget Overview */}

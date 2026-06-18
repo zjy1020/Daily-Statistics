@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { Search, Settings, TrendingUp, TrendingDown, Edit3, Trash2, X, SlidersHorizontal, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, Settings, TrendingUp, TrendingDown, Edit3, Trash2, X, SlidersHorizontal, ChevronLeft, ChevronRight, Check } from 'lucide-react';
 import { useStore } from '../store/useStore';
 import { formatCurrency, formatDate } from '../utils/helpers';
 import { getToday } from '../utils/helpers';
@@ -19,6 +19,8 @@ export default function Dashboard() {
   const budgets = useStore(s => s.budgets);
   const getCategoryIcon = useStore(s => s.getCategoryIcon);
   const getExpenseCategories = useStore(s => s.getExpenseCategories);
+  const dailyBudgets = useStore(s => s.dailyBudgets);
+  const setDailyBudget = useStore(s => s.setDailyBudget);
   const [selectedRecord, setSelectedRecord] = useState<ExpenseRecord | null>(null);
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -30,6 +32,14 @@ export default function Dashboard() {
   const [selectingPhase, setSelectingPhase] = useState<'start' | 'end'>('start');
   const [catType, setCatType] = useState<'expense' | 'income'>('expense');
   const searchRef = useRef<HTMLDivElement>(null);
+  const [dailyInput, setDailyInput] = useState('');
+  const [editMode, setEditMode] = useState(false);
+  const [editAmount, setEditAmount] = useState('');
+  const [editCategory, setEditCategory] = useState('');
+  const [editNote, setEditNote] = useState('');
+
+  // Reset edit state when selected record changes
+  useEffect(() => { setEditMode(false); }, [selectedRecord]);
 
   useEffect(() => {
     if (!showSearch) return;
@@ -79,6 +89,18 @@ export default function Dashboard() {
   const monthPrefix = getToday().slice(0, 7);
   const catTotals = getCategoryTotals(monthPrefix, catType) as Record<string, number>;
   const catKeys = Object.keys(catTotals).sort((a, b) => catTotals[b] - catTotals[a]).slice(0, 5);
+
+  // Daily budget
+  const today = getToday();
+  const dailyBudgetAmt = dailyBudgets[today] || 0;
+  const dailyPct = dailyBudgetAmt > 0 ? Math.min((todayExpense / dailyBudgetAmt) * 100, 100) : 0;
+  const dailyRemaining = dailyBudgetAmt - todayExpense;
+  const handleSaveDaily = () => {
+    const val = parseFloat(dailyInput);
+    if (!val || val <= 0) return;
+    setDailyBudget(today, val);
+    setDailyInput('');
+  };
 
   return (
     <div className="px-4 pt-12 stagger">
@@ -325,6 +347,47 @@ export default function Dashboard() {
         </div>
       </div>
 
+      {/* Daily Budget Card */}
+      <div className="apple-card p-4 mb-3">
+        <div className="flex items-center justify-between mb-2">
+          <p className="text-xs text-apple-subtext dark:text-apple-dark-subtext">今日预算</p>
+          {dailyBudgetAmt > 0 && (
+            <p className={`text-xs font-medium ${dailyRemaining >= 0 ? 'text-apple-subtext' : 'text-expense'}`}>
+              {dailyRemaining >= 0 ? `剩余 ${formatCurrency(dailyRemaining)}` : `超支 ${formatCurrency(Math.abs(dailyRemaining))}`}
+            </p>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="flex-1">
+            {dailyBudgetAmt > 0 ? (
+              <p className="text-lg font-bold text-apple-text dark:text-apple-dark-text">{formatCurrency(dailyBudgetAmt)}</p>
+            ) : (
+              <p className="text-sm text-apple-subtext">未设置今日预算</p>
+            )}
+            {dailyBudgetAmt > 0 && (
+              <div className="mt-1 h-1.5 rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden">
+                <div className="h-full rounded-full transition-all duration-500"
+                  style={{
+                    width: `${dailyPct}%`,
+                    background: dailyPct >= 100 ? 'linear-gradient(90deg, #ff9f0a, #ff3b30)' : 'linear-gradient(90deg, #4f7cff, #6b9bff)',
+                  }} />
+              </div>
+            )}
+          </div>
+          <div className="flex gap-1.5 shrink-0">
+            <input type="number" value={dailyInput} onChange={e => setDailyInput(e.target.value)}
+              placeholder="额度"
+              className="w-20 px-2.5 py-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-xs text-center outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" />
+            <button onClick={handleSaveDaily} disabled={!dailyInput || parseFloat(dailyInput) <= 0}
+              className="px-3 py-2 rounded-xl bg-apple-blue text-white text-xs font-semibold apple-btn disabled:opacity-40 flex items-center gap-1"
+              style={{ boxShadow: '0 3px 10px rgba(79,124,255,0.3)' }}>
+              <Check size={12} strokeWidth={3} />
+              设
+            </button>
+          </div>
+        </div>
+      </div>
+
       {/* Budget Alerts on Dashboard */}
       {(budgetTotal > 0 && monthExpense / budgetTotal >= 0.8) || budgets.some(b => { const p = getCategoryTotals(getToday().slice(0, 7), 'expense')[b.category] || 0; return b.amount > 0 && (p / b.amount) * 100 >= 80; }) ? (
         <div className="apple-card p-4 mb-3" style={{ background: 'rgba(255,59,48,0.06)', borderColor: 'rgba(255,59,48,0.15)' }}>
@@ -429,50 +492,101 @@ export default function Dashboard() {
       {/* Record Action Modal */}
       {selectedRecord && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
-          <div className="fixed inset-0 bg-black/20 fade-enter" onClick={() => setSelectedRecord(null)} />
+          <div className="fixed inset-0 bg-black/20 fade-enter" onClick={() => { setSelectedRecord(null); setEditMode(false); }} />
           <div className="relative bg-white dark:bg-gray-800 rounded-3xl w-full overflow-y-auto shadow-xl modal-enter"
             style={{ maxWidth: 340, maxHeight: '80vh' }}>
             <div className="p-6">
-              <button onClick={() => setSelectedRecord(null)} className="absolute top-3 right-3 w-8 h-8 rounded-full flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/10 apple-btn">
+              <button onClick={() => { setSelectedRecord(null); setEditMode(false); }} className="absolute top-3 right-3 w-8 h-8 rounded-full flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/10 apple-btn">
                 <X size={16} className="text-apple-subtext" />
               </button>
-              <div className="flex items-center gap-3 mb-5 pb-4 border-b border-apple-separator dark:border-apple-dark-separator">
-                <div className="w-12 h-12 rounded-full flex items-center justify-center text-xl"
-                  style={{ background: selectedRecord.type === 'expense' ? 'rgba(255,59,48,0.08)' : 'rgba(52,199,89,0.08)' }}>
-                  {getCategoryIcon(selectedRecord.category)}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-apple-text dark:text-apple-dark-text truncate">{selectedRecord.note || selectedRecord.category}</p>
-                  <p className="text-xs text-apple-subtext dark:text-apple-dark-subtext">
-                    {formatDate(selectedRecord.date)} {selectedRecord.time || ''}
-                  </p>
-                </div>
-                <span className={`text-lg font-bold shrink-0 ${selectedRecord.type === 'expense' ? 'text-expense' : 'text-income'}`}>
-                  {selectedRecord.type === 'expense' ? '-' : '+'}{formatCurrency(selectedRecord.amount)}
-                </span>
-              </div>
-              <div className="flex gap-3">
-                <button onClick={() => {
-                  navigate('/add', { state: { editRecord: selectedRecord } });
-                  setSelectedRecord(null);
-                }}
-                  className="flex-1 py-3 rounded-2xl font-semibold text-sm flex items-center justify-center gap-2 apple-btn"
-                  style={{ background: 'rgba(79,124,255,0.1)', color: '#4f7cff' }}>
-                  <Edit3 size={16} />
-                  编辑
-                </button>
-                <button onClick={() => {
-                  if (confirm('确定删除这条记录吗？')) {
-                    deleteRecord(selectedRecord.id);
-                    setSelectedRecord(null);
-                  }
-                }}
-                  className="flex-1 py-3 rounded-2xl font-semibold text-sm flex items-center justify-center gap-2 apple-btn"
-                  style={{ background: 'rgba(255,59,48,0.1)', color: '#ff3b30' }}>
-                  <Trash2 size={16} />
-                  删除
-                </button>
-              </div>
+              {!editMode ? (
+                <>
+                  <div className="flex items-center gap-3 mb-5 pb-4 border-b border-apple-separator dark:border-apple-dark-separator">
+                    <div className="w-12 h-12 rounded-full flex items-center justify-center text-xl"
+                      style={{ background: selectedRecord.type === 'expense' ? 'rgba(255,59,48,0.08)' : 'rgba(52,199,89,0.08)' }}>
+                      {getCategoryIcon(selectedRecord.category)}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-apple-text dark:text-apple-dark-text truncate">{selectedRecord.note || selectedRecord.category}</p>
+                      <p className="text-xs text-apple-subtext dark:text-apple-dark-subtext">
+                        {formatDate(selectedRecord.date)} {selectedRecord.time || ''}
+                      </p>
+                    </div>
+                    <span className={`text-lg font-bold shrink-0 ${selectedRecord.type === 'expense' ? 'text-expense' : 'text-income'}`}>
+                      {selectedRecord.type === 'expense' ? '-' : '+'}{formatCurrency(selectedRecord.amount)}
+                    </span>
+                  </div>
+                  <div className="flex gap-3">
+                    <button onClick={() => { setEditAmount(String(selectedRecord.amount)); setEditCategory(selectedRecord.category); setEditNote(selectedRecord.note); setEditMode(true); }}
+                      className="flex-1 py-3 rounded-2xl font-semibold text-sm flex items-center justify-center gap-2 apple-btn"
+                      style={{ background: 'rgba(79,124,255,0.1)', color: '#4f7cff' }}>
+                      <Edit3 size={16} />
+                      编辑
+                    </button>
+                    <button onClick={() => {
+                      if (confirm('确定删除这条记录吗？')) {
+                        deleteRecord(selectedRecord.id);
+                        setSelectedRecord(null);
+                        setEditMode(false);
+                      }
+                    }}
+                      className="flex-1 py-3 rounded-2xl font-semibold text-sm flex items-center justify-center gap-2 apple-btn"
+                      style={{ background: 'rgba(255,59,48,0.1)', color: '#ff3b30' }}>
+                      <Trash2 size={16} />
+                      删除
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <h3 className="text-base font-bold text-apple-text dark:text-apple-dark-text mb-4">编辑记录</h3>
+                  {/* Amount */}
+                  <div className="mb-3">
+                    <p className="text-xs text-apple-subtext mb-1.5 font-medium">金额</p>
+                    <input type="number" step="0.01" value={editAmount} onChange={e => setEditAmount(e.target.value)}
+                      className="w-full px-4 py-3 rounded-2xl bg-gray-100 dark:bg-gray-700 text-sm text-apple-text dark:text-apple-dark-text text-center outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" />
+                  </div>
+                  {/* Category */}
+                  <div className="mb-3">
+                    <p className="text-xs text-apple-subtext mb-1.5 font-medium">分类</p>
+                    <div className="grid grid-cols-4 gap-2">
+                      {getExpenseCategories().map(c => (
+                        <button key={c.name} onClick={() => setEditCategory(c.name)}
+                          className={`flex flex-col items-center gap-0.5 py-1.5 rounded-xl transition-all ${
+                            editCategory === c.name ? 'bg-apple-blue/10 border border-apple-blue/30' : ''
+                          }`}>
+                          <span className="text-base">{c.icon}</span>
+                          <span className={`text-[10px] ${editCategory === c.name ? 'text-apple-blue font-semibold' : 'text-apple-subtext'}`}>{c.name}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  {/* Note */}
+                  <div className="mb-4">
+                    <p className="text-xs text-apple-subtext mb-1.5 font-medium">备注</p>
+                    <input type="text" value={editNote} onChange={e => setEditNote(e.target.value)}
+                      placeholder="备注"
+                      className="w-full px-4 py-3 rounded-2xl bg-gray-100 dark:bg-gray-700 text-sm text-apple-text dark:text-apple-dark-text outline-none text-center" />
+                  </div>
+                  <div className="flex gap-3">
+                    <button onClick={() => setEditMode(false)}
+                      className="flex-1 py-3 rounded-2xl font-semibold text-sm bg-gray-100 dark:bg-gray-700 text-apple-text dark:text-apple-dark-text apple-btn">
+                      取消
+                    </button>
+                    <button onClick={() => {
+                      const val = parseFloat(editAmount);
+                      if (!val || val <= 0) return;
+                      updateRecord(selectedRecord.id, { amount: val, category: editCategory, note: editNote.trim() });
+                      setEditMode(false);
+                    }}
+                      className="flex-1 py-3 rounded-2xl font-semibold text-sm text-white apple-btn flex items-center justify-center gap-1.5"
+                      style={{ background: 'linear-gradient(135deg, #4f7cff, #6b9bff)', boxShadow: '0 4px 12px rgba(79,124,255,0.3)' }}>
+                      <Check size={16} strokeWidth={3} />
+                      保存
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>
