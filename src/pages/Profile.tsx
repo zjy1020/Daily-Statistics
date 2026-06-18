@@ -254,21 +254,22 @@ export default function Profile() {
       {showCatModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
           <div className="fixed inset-0 bg-black/20 fade-enter" onClick={() => { setShowCatModal(false); setEditCat(null); }} />
-          <div className="relative bg-white dark:bg-gray-800 rounded-3xl w-full overflow-y-auto shadow-xl modal-enter"
-            style={{ maxWidth: 360, maxHeight: '90vh' }}>
-            <div className="p-6">
+          <div className="relative bg-white dark:bg-gray-800 rounded-3xl w-full shadow-xl modal-enter flex flex-col"
+            style={{ maxWidth: 360, maxHeight: '85vh' }}>
+            {/* Fixed header */}
+            <div className="p-6 pb-0 shrink-0">
               <h3 className="text-lg font-bold text-apple-text dark:text-apple-dark-text mb-4">
                 {editCat ? '编辑分类' : '添加分类'}
               </h3>
-
-              {/* Name input */}
               <input type="text" value={catName} onChange={e => setCatName(e.target.value)}
                 placeholder="分类名称"
                 className="w-full px-4 py-3 rounded-2xl bg-gray-100 dark:bg-gray-700 text-sm text-apple-text dark:text-apple-dark-text outline-none mb-4 text-center" />
+            </div>
 
-              {/* Emoji picker */}
+            {/* Scrollable emoji picker */}
+            <div className="px-6 overflow-y-auto min-h-0">
               <p className="text-xs text-apple-subtext mb-2 font-medium text-center">选择图标</p>
-              <div className="grid grid-cols-6 gap-2 mb-5">
+              <div className="grid grid-cols-6 gap-2">
                 {CATEGORY_EMOJIS.map(e => (
                   <button key={e} onClick={() => setCatIcon(e)}
                     className={`w-full aspect-square rounded-xl flex items-center justify-center text-lg apple-btn ${
@@ -278,8 +279,10 @@ export default function Profile() {
                   </button>
                 ))}
               </div>
+            </div>
 
-              {/* Actions */}
+            {/* Fixed actions */}
+            <div className="p-6 shrink-0">
               <div className="flex gap-3">
                 <button onClick={() => { setShowCatModal(false); setEditCat(null); }}
                   className="flex-1 py-3 rounded-2xl font-semibold text-sm bg-gray-100 dark:bg-gray-700 text-apple-text dark:text-apple-dark-text apple-btn">

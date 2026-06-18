@@ -36,7 +36,16 @@ interface AppState {
 function loadData(): { records: ExpenseRecord[]; budgets: Budget[]; darkMode: boolean; customExpenseCategories: Category[]; customIncomeCategories: Category[] } {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      return {
+        records: parsed.records || [],
+        budgets: parsed.budgets || [],
+        darkMode: parsed.darkMode ?? false,
+        customExpenseCategories: parsed.customExpenseCategories || [],
+        customIncomeCategories: parsed.customIncomeCategories || [],
+      };
+    }
   } catch { /* ignore */ }
   return { records: [], budgets: [], darkMode: false, customExpenseCategories: [], customIncomeCategories: [] };
 }
