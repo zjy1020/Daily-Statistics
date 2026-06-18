@@ -99,31 +99,33 @@ export default function Profile() {
     }
   };
 
+  let capFilesystem: any = null;
+  let capShare: any = null;
+  const getCap = async () => {
+    if (!capFilesystem) capFilesystem = await import('@capacitor/filesystem');
+    if (!capShare) capShare = await import('@capacitor/share');
+    return { Filesystem: capFilesystem.Filesystem, Directory: capFilesystem.Directory, Share: capShare.Share };
+  };
+
   const handleExport = async () => {
     const csv = '﻿' + exportData();
-    const name = `记账数据_${new Date().toISOString().slice(0, 10)}.csv`;
     try {
-      const { Filesystem, Directory } = await import('@capacitor/filesystem');
-      const { Share } = await import('@capacitor/share');
-      await Filesystem.writeFile({ path: name, data: btoa(unescape(encodeURIComponent(csv))), directory: Directory.Cache });
-      await Share.share({ url: (await Filesystem.getUri({ path: name, directory: Directory.Cache })).uri });
+      const { Filesystem, Directory, Share } = await getCap();
+      const r = await Filesystem.writeFile({ path: 'export.csv', data: csv, directory: Directory.Cache });
+      await Share.share({ files: [r.uri] });
     } catch {
-      const encoded = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
-      window.location.href = encoded;
+      window.location.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
     }
   };
 
   const handleExportJSON = async () => {
     const json = exportJSON();
-    const name = `记账备份_${new Date().toISOString().slice(0, 10)}.json`;
     try {
-      const { Filesystem, Directory } = await import('@capacitor/filesystem');
-      const { Share } = await import('@capacitor/share');
-      await Filesystem.writeFile({ path: name, data: json, directory: Directory.Cache });
-      await Share.share({ url: (await Filesystem.getUri({ path: name, directory: Directory.Cache })).uri });
+      const { Filesystem, Directory, Share } = await getCap();
+      const r = await Filesystem.writeFile({ path: 'export.json', data: json, directory: Directory.Cache });
+      await Share.share({ files: [r.uri] });
     } catch {
-      const encoded = 'data:application/json;charset=utf-8,' + encodeURIComponent(json);
-      window.location.href = encoded;
+      window.location.href = 'data:application/json;charset=utf-8,' + encodeURIComponent(json);
     }
   };
 
