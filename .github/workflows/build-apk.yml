@@ -18,21 +18,10 @@ jobs:
           distribution: 'temurin'
           java-version: 21
 
-      - name: Setup Android SDK
+      - name: Accept Android SDK licenses
         run: |
-          mkdir -p $HOME/android/cmdline-tools
-          curl -sL https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -o cmdline-tools.zip
-          unzip -q cmdline-tools.zip -d $HOME/android/
-          mv $HOME/android/cmdline-tools $HOME/android/latest
-          mkdir -p $HOME/android/cmdline-tools
-          mv $HOME/android/latest $HOME/android/cmdline-tools/
-          rm cmdline-tools.zip
-          export ANDROID_HOME=$HOME/android
-          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --sdk_root=$ANDROID_HOME --licenses > /dev/null 2>&1
-          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --sdk_root=$ANDROID_HOME "platform-tools" "platforms;android-35" "build-tools;35.0.0" > /dev/null 2>&1
-          echo "ANDROID_HOME=$ANDROID_HOME" >> $GITHUB_ENV
-          echo "$ANDROID_HOME/platform-tools" >> $GITHUB_PATH
-          echo "$ANDROID_HOME/cmdline-tools/latest/bin" >> $GITHUB_PATH
+          yes | $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager --sdk_root=$ANDROID_SDK_ROOT --licenses > /dev/null 2>&1
+          echo "ANDROID_HOME=$ANDROID_SDK_ROOT" >> $GITHUB_ENV
 
       - name: Build Web App
         run: |
