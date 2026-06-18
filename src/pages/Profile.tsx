@@ -1,4 +1,4 @@
-import { Moon, Sun, Download, Upload, Info, ChevronRight, Plus, X, Check, Pencil, Trash2 } from 'lucide-react';
+import { Moon, Sun, Download, Upload, Info, ChevronRight, Plus, X, Check, Pencil, Trash2, BookOpen } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { useStore } from '../store/useStore';
 import { formatCurrency } from '../utils/helpers';
@@ -32,6 +32,7 @@ export default function Profile() {
   const [showAvatarPicker, setShowAvatarPicker] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [showAbout, setShowAbout] = useState(false);
+  const [showTutorial, setShowTutorial] = useState(false);
   const avatarFileRef = useRef<HTMLInputElement>(null);
   const bio = useStore(s => s.bio);
   const setBio = useStore(s => s.setBio);
@@ -230,6 +231,12 @@ export default function Profile() {
       icon: Trash2,
       label: '清除所有数据',
       right: <button onClick={() => setShowClearConfirm(true)} className="text-apple-red text-sm font-medium">清除</button>,
+    },
+    {
+      icon: BookOpen,
+      label: '使用教程',
+      right: <ChevronRight size={16} color="#6e6e73" />,
+      onClick: () => setShowTutorial(true),
     },
     {
       icon: Info,
@@ -518,6 +525,72 @@ export default function Profile() {
                   </button>
                 ))}
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Tutorial Modal */}
+      {showTutorial && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4" style={{ paddingTop: '4vh', paddingBottom: 'calc(4vh + 80px)' }}>
+          <div className="fixed inset-0 bg-black/20 fade-enter" onClick={() => setShowTutorial(false)} />
+          <div className="relative bg-white dark:bg-gray-800 rounded-3xl w-full shadow-xl modal-enter flex flex-col overflow-hidden" style={{ maxWidth: 380, maxHeight: '82vh' }}>
+            <div className="p-6 pb-0 shrink-0">
+              <h3 className="text-xl font-bold text-apple-text dark:text-apple-dark-text text-center mb-1">使用教程</h3>
+              <p className="text-xs text-apple-subtext text-center">快速上手每日记账</p>
+            </div>
+            <div className="p-6 overflow-y-auto min-h-0 flex-1 text-sm text-apple-text dark:text-apple-dark-text space-y-5 leading-relaxed">
+              <section>
+                <h4 className="font-semibold text-base mb-1">📝 记账</h4>
+                <p className="text-apple-subtext dark:text-apple-dark-subtext">点击底部导航栏「<strong>+</strong>」按钮，选择支出或收入，填写金额、分类、备注即可完成记账。支持记录具体日期和时间。</p>
+              </section>
+              <section>
+                <h4 className="font-semibold text-base mb-1">📊 仪表盘</h4>
+                <p className="text-apple-subtext dark:text-apple-dark-subtext">首页展示月度概览、今日支出、预算进度、分类统计和最近记录。点击记录可查看详情或编辑删除。左右滑动日期可切换查看不同日期的数据。</p>
+              </section>
+              <section>
+                <h4 className="font-semibold text-base mb-1">💰 预算管理</h4>
+                <p className="text-apple-subtext dark:text-apple-dark-subtext">在预算页设置月度总预算和各分类预算。也可设置每日预算限额。支持选择日期查看或修改历史预算。</p>
+              </section>
+              <section>
+                <h4 className="font-semibold text-base mb-1">📈 数据统计</h4>
+                <p className="text-apple-subtext dark:text-apple-dark-subtext">统计页支持按周/月/年切换查看收支趋势，包含饼图（分类占比）、柱状图（每日收支）、折线图（月度趋势）。点击图表分类可查看对应记录详情。</p>
+              </section>
+              <section>
+                <h4 className="font-semibold text-base mb-1">🔍 搜索筛选</h4>
+                <p className="text-apple-subtext dark:text-apple-dark-subtext">在首页点击搜索图标，可按关键词、分类、日期范围筛选记录。</p>
+              </section>
+              <section>
+                <h4 className="font-semibold text-base mb-1">🏷️ 分类管理</h4>
+                <p className="text-apple-subtext dark:text-apple-dark-subtext">在「我的」页面可以添加、编辑、删除自定义分类（支出和收入分别管理），支持选择图标。</p>
+              </section>
+              <section>
+                <h4 className="font-semibold text-base mb-1">💾 数据导出与备份</h4>
+                <p className="text-apple-subtext dark:text-apple-dark-subtext">
+                  · <strong>导出 CSV</strong> — 导出所有记录为表格文件，可用 Excel 打开<br />
+                  · <strong>导入 CSV</strong> — 从 CSV 文件导入记录<br />
+                  · <strong>备份 JSON</strong> — 完整备份所有数据（含记录、预算、分类等）<br />
+                  · <strong>恢复 JSON</strong> — 从备份文件恢复完整数据
+                </p>
+              </section>
+              <section>
+                <h4 className="font-semibold text-base mb-1">🌙 深色模式</h4>
+                <p className="text-apple-subtext dark:text-apple-dark-subtext">在「我的」页面切换深色/浅色模式，或跟随系统设置。</p>
+              </section>
+              <section>
+                <h4 className="font-semibold text-base mb-1">📱 关于应用</h4>
+                <p className="text-apple-subtext dark:text-apple-dark-subtext">所有数据存储在设备本地，不会上传到任何服务器。全离线可用，无需网络。</p>
+              </section>
+            </div>
+            <div className="p-6 shrink-0 pt-0">
+              <button onClick={() => setShowTutorial(false)}
+                className="w-full py-3 rounded-2xl font-semibold text-sm text-white apple-btn"
+                style={{
+                  background: 'linear-gradient(135deg, #4f7cff, #6b9bff)',
+                  boxShadow: '0 4px 12px rgba(79,124,255,0.3)',
+                }}>
+                知道了
+              </button>
             </div>
           </div>
         </div>
