@@ -117,13 +117,23 @@ export default function BudgetPage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-apple-text dark:text-apple-dark-text">预算</h1>
-        <button onClick={openAdd}
-          className="px-4 py-2 rounded-full bg-apple-blue text-white text-sm font-semibold flex items-center gap-1.5 apple-btn shadow-md"
-          style={{ boxShadow: '0 4px 12px rgba(79,124,255,0.3)' }}>
-          <Plus size={16} strokeWidth={3} />
-          预算
-        </button>
+        <div className="flex items-center gap-2">
+          <button onClick={openAdd} disabled={monthlyBudget === 0}
+            className="px-4 py-2 rounded-full bg-apple-blue text-white text-sm font-semibold flex items-center gap-1.5 apple-btn shadow-md disabled:opacity-40"
+            style={{ boxShadow: '0 4px 12px rgba(79,124,255,0.3)' }}>
+            <Plus size={16} strokeWidth={3} />
+            预算
+          </button>
+        </div>
       </div>
+
+      {monthlyBudget === 0 && (
+        <div className="apple-card p-4 mb-3 text-center" style={{ background: 'rgba(255,159,10,0.06)', borderColor: 'rgba(255,159,10,0.15)' }}>
+          <p className="text-xs text-apple-subtext dark:text-apple-dark-subtext">
+            请先点击上方卡片<span className="font-medium text-apple-blue">设置预算总额</span>，再添加分类预算
+          </p>
+        </div>
+      )}
 
       {/* Daily Budget Card */}
       <div className="apple-card p-5 mb-3">
