@@ -1,0 +1,695 @@
+import { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, LineChart, Line } from 'recharts';
+import { CalendarDays, ChevronLeft, ChevronRight, Edit3, Trash2, X } from 'lucide-react';
+import CategoryIcon from '../components/CategoryIcon';
+import { useStore } from '../store/useStore';
+import { formatCurrency, formatDate, getThisMonth, getToday, getWeekRange, getYear } from '../utils/helpers';
+import type { ExpenseRecord } from '../types';
+
+type Period = 'week' | 'month' | 'year';
+
+const WEEKDAYS = ['日', '一', '二', '三', '四', '五', '六'];
+
+export default function Statistics() {
+  const navigate = useNavigate();
+  const [period, setPeriod] = useState<Period>('month');
+  const [chartType, setChartType] = useState<'pie' | 'bar' | 'line' | 'compare'>('pie');
+  const [dataType, setDataType] = useState<'expense' | 'income'>('expense');
+  const [showCalendar, setShowCalendar] = useState(false);
+  const [calendarDate, setCalendarDate] = useState(() => new Date());
+  const [selectedDate, setSelectedDate] = useState(getToday());
+  const [clickedRecord, setClickedRecord] = useState<ExpenseRecord | null>(null);
+  const [clickedCategory, setClickedCategory] = useState<string | null>(null);
+
+  const records = useStore(s => s.records);
+  const deleteRecord = useStore(s => s.deleteRecord);
+  const budgets = useStore(s => s.budgets);
+  const getMonthlyTrend = useStore(s => s.getMonthlyTrend);
+  const darkMode = useStore(s => s.darkMode);
+
+  // Period-based filtering
+  const periodRange = useMemo(() => {
+    if (period === 'week') return getWeekRange();
+    if (period === 'year') return { start: `${getYear()}-01-01`, end: `${getYear()}-12-31` };
+    const month = getThisMonth();
+    const [y, m] = month.split('-').map(Number);
+    const lastDay = new Date(y, m, 0).getDate();
+    return { start: `${month}-01`, end: `${month}-${String(lastDay).padStart(2, '0')}` };
+  }, [period]);
+
+  const prevPeriodRange = useMemo(() => {
+    if (period === 'week') {
+      const d = new Date();
+      d.setDate(d.getDate() - 7);
+      return getWeekRange(d);
+    }
+    if (period === 'year') {
+      const prevY = String(Number(getYear()) - 1);
+      return { start: `${prevY}-01-01`, end: `${prevY}-12-31` };
+    }
+    const month = getThisMonth();
+    const [y, m] = month.split('-').map(Number);
+    const d = new Date(y, m - 2, 1);
+    const prevMonth = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+    return { start: `${prevMonth}-01`, end: `${prevMonth}-${String(lastDay).padStart(2, '0')}` };
+  }, [period]);
+
+  const periodRecords = useMemo(() =>
+    records.filter(r => r.date >= periodRange.start && r.date <= periodRange.end),
+  [records, periodRange]);
+
+  const prevRecords = useMemo(() =>
+    records.filter(r => r.date >= prevPeriodRange.start && r.date <= prevPeriodRange.end),
+  [records, prevPeriodRange]);
+
+  const expense = useMemo(() =>
+    periodRecords.filter(r => r.type === 'expense').reduce((s, r) => s + r.amount, 0),
+  [periodRecords]);
+
+  const income = useMemo(() =>
+    periodRecords.filter(r => r.type === 'income').reduce((s, r) => s + r.amount, 0),
+  [periodRecords]);
+
+  const prevExpense = useMemo(() =>
+    prevRecords.filter(r => r.type === 'expense').reduce((s, r) => s + r.amount, 0),
+  [prevRecords]);
+
+  const prevIncome = useMemo(() =>
+    prevRecords.filter(r => r.type === 'income').reduce((s, r) => s + r.amount, 0),
+  [prevRecords]);
+
+  const expenseChange = prevExpense > 0 ? ((expense - prevExpense) / prevExpense) * 100 : (expense > 0 ? 100 : 0);
+  const incomeChange = prevIncome > 0 ? ((income - prevIncome) / prevIncome) * 100 : (income > 0 ? 100 : 0);
+
+  // Chart data
+  const categoryData = useMemo(() => {
+    const filtered = periodRecords.filter(r => r.type === dataType);
+    const totals: Record<string, number> = {};
+    filtered.forEach(r => { totals[r.category] = (totals[r.category] || 0) + r.amount; });
+    const total = Object.values(totals).reduce((s, v) => s + v, 0);
+    return Object.keys(totals).sort((a, b) => totals[b] - totals[a]).map(name => ({
+      name,
+      value: totals[name],
+      pct: total > 0 ? ((totals[name] / total) * 100).toFixed(0) + '%' : '0%',
+    }));
+  }, [periodRecords, dataType]);
+
+  const trendData = useMemo(() => {
+    if (period === 'year') {
+      return getMonthlyTrend().map(d => ({
+        label: `${d.month.slice(5)}月`,
+        expense: d.expense,
+        income: d.income,
+      }));
+    }
+    // week or month: show daily data within the period range
+    const days: { label: string; expense: number; income: number }[] = [];
+    const start = new Date(periodRange.start);
+    const end = new Date(periodRange.end);
+    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+      const dateStr = d.toISOString().slice(0, 10);
+      const dayRecords = records.filter(r => r.date === dateStr);
+      days.push({
+        label: `${d.getMonth() + 1}/${d.getDate()}`,
+        expense: dayRecords.filter(r => r.type === 'expense').reduce((s, r) => s + r.amount, 0),
+        income: dayRecords.filter(r => r.type === 'income').reduce((s, r) => s + r.amount, 0),
+      });
+    }
+    return days;
+  }, [records, period, periodRange]);
+
+  const catCompare = useMemo(() => {
+    const current: Record<string, number> = {};
+    const previous: Record<string, number> = {};
+    const curFiltered = periodRecords.filter(r => r.type === dataType);
+    const prevFiltered = prevRecords.filter(r => r.type === dataType);
+    curFiltered.forEach(r => { current[r.category] = (current[r.category] || 0) + r.amount; });
+    prevFiltered.forEach(r => { previous[r.category] = (previous[r.category] || 0) + r.amount; });
+    const allCats = new Set([...Object.keys(current), ...Object.keys(previous)]);
+    return Array.from(allCats)
+      .map(name => {
+        const cur = current[name] || 0;
+        const prev = previous[name] || 0;
+        const diff = cur - prev;
+        return { name, current: cur, previous: prev, diff, pct: prev > 0 ? ((diff / prev) * 100) : (cur > 0 ? 100 : 0) };
+      })
+      .filter(c => c.current > 0 || c.previous > 0)
+      .sort((a, b) => Math.abs(b.diff) - Math.abs(a.diff));
+  }, [periodRecords, prevRecords, dataType]);
+
+  // Calendar data
+  const dailyMap = useMemo(() => {
+    const map: Record<string, { expense: number; income: number }> = {};
+    records.forEach(r => {
+      if (!map[r.date]) map[r.date] = { expense: 0, income: 0 };
+      if (r.type === 'expense') map[r.date].expense += r.amount;
+      else map[r.date].income += r.amount;
+    });
+    return map;
+  }, [records]);
+
+  const calendarCells = useMemo(() => {
+    const year = calendarDate.getFullYear();
+    const month = calendarDate.getMonth();
+    const firstDay = new Date(year, month, 1).getDay();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+    const cells: (number | null)[] = [];
+    for (let i = 0; i < firstDay; i++) cells.push(null);
+    for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+    const rem = 7 - (cells.length % 7);
+    if (rem < 7) for (let i = 0; i < rem; i++) cells.push(null);
+    return cells;
+  }, [calendarDate]);
+
+  const calYear = calendarDate.getFullYear();
+  const calMonth = calendarDate.getMonth();
+
+  const toDateStr = (day: number) =>
+    `${calYear}-${String(calMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+
+  const selectedRecords = useMemo(() => {
+    return records.filter(r => r.date === selectedDate);
+  }, [selectedDate, records]);
+
+  const selectedDaily = dailyMap[selectedDate];
+  const selectedTotalExpense = selectedDaily?.expense ?? 0;
+  const selectedTotalIncome = selectedDaily?.income ?? 0;
+
+  const prevMonth = () => setCalendarDate(d => new Date(d.getFullYear(), d.getMonth() - 1, 1));
+  const nextMonth = () => setCalendarDate(d => new Date(d.getFullYear(), d.getMonth() + 1, 1));
+
+  const COLORS = ['#4f7cff', '#34c759', '#ff9f0a', '#ff2222', '#5ac8fa', '#af52de', '#ffd60a', '#8e8e93'];
+
+  const tooltipProps = {
+    contentStyle: {
+      background: darkMode ? 'rgba(44,44,46,0.95)' : 'rgba(255,255,255,0.95)',
+      border: 'none',
+      borderRadius: 12,
+      backdropFilter: 'blur(20px)',
+      WebkitBackdropFilter: 'blur(20px)',
+      boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
+      padding: '8px 14px',
+    },
+    labelStyle: { color: darkMode ? '#f5f5f7' : '#1d1d1f', fontSize: 13, fontWeight: 600 } as React.CSSProperties,
+    itemStyle: { color: darkMode ? '#98989d' : '#6e6e73', fontSize: 12 } as React.CSSProperties,
+  };
+
+  const chartMemo = useMemo(() => (
+    <div className="apple-card p-5 mb-4" style={{ minHeight: 260 }}>
+      {chartType === 'pie' && (
+        categoryData.length > 0 ? (
+          <ResponsiveContainer width="100%" height={220}>
+            <PieChart>
+              <Pie data={categoryData} cx="50%" cy="50%" innerRadius={50} outerRadius={75}
+                paddingAngle={2} dataKey="value" nameKey="name"
+                onClick={(data: any) => setClickedCategory(data.name)}
+                style={{ cursor: 'pointer' }}
+                label={({ cx, cy, midAngle, outerRadius, percent, name }: any) => {
+                  if (percent < 0.01) return null;
+                  const RAD = Math.PI / 180;
+                  const radius = outerRadius + 24;
+                  const x = cx + radius * Math.cos(-midAngle * RAD);
+                  const y = cy + radius * Math.sin(-midAngle * RAD);
+                  return (
+                    <text x={x} y={y} textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="middle"
+                      fontSize={11} fill="#6e6e73" style={{ fontWeight: 500 }}>
+                      {name} {(percent * 100).toFixed(0)}%
+                    </text>
+                  );
+                }}
+                labelLine={{ stroke: 'rgba(60,60,67,0.15)', strokeWidth: 1 }}>
+                {categoryData.map((_, i) => (
+                  <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                ))}
+              </Pie>
+              <Tooltip {...tooltipProps} formatter={(v: any, n: any) => [formatCurrency(Number(v)), n]} />
+            </PieChart>
+          </ResponsiveContainer>
+        ) : (
+          <div className="flex items-center justify-center h-[220px] text-sm text-apple-subtext">暂无数据</div>
+        )
+      )}
+
+      {chartType === 'bar' && (
+        categoryData.length > 0 ? (
+          <ResponsiveContainer width="100%" height={220}>
+            <BarChart data={categoryData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(60,60,67,0.06)" />
+              <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+              <YAxis tick={{ fontSize: 11 }} />
+              <Tooltip {...tooltipProps} cursor={false} formatter={(v: any) => [formatCurrency(Number(v)), '金额']} />
+              <Bar dataKey="value" radius={[6, 6, 0, 0]} name="金额"
+                onClick={(data: any) => setClickedCategory(data.name)}
+                style={{ cursor: 'pointer' }}>
+                {categoryData.map((_, i) => (
+                  <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        ) : (
+          <div className="flex items-center justify-center h-[220px] text-sm text-apple-subtext">暂无数据</div>
+        )
+      )}
+
+      {chartType === 'line' && (
+        trendData.length > 0 ? (
+          <ResponsiveContainer width="100%" height={220}>
+            <LineChart data={trendData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(60,60,67,0.06)" />
+              <XAxis dataKey="label" tick={{ fontSize: 11 }} />
+              <YAxis tick={{ fontSize: 11 }} />
+              <Tooltip {...tooltipProps} cursor={false} formatter={(v: any) => [formatCurrency(Number(v)), dataType === 'expense' ? '支出' : '收入']} />
+              {dataType === 'expense' && <Line type="monotone" dataKey="expense" stroke="#ff2222" strokeWidth={2} dot={{ r: 3 }} name="支出" />}
+              {dataType === 'income' && <Line type="monotone" dataKey="income" stroke="#34c759" strokeWidth={2} dot={{ r: 3 }} name="收入" />}
+            </LineChart>
+          </ResponsiveContainer>
+        ) : (
+          <div className="flex items-center justify-center h-[220px] text-sm text-apple-subtext">暂无数据</div>
+        )
+      )}
+
+      {chartType === 'compare' && (
+        trendData.length > 0 ? (
+          <ResponsiveContainer width="100%" height={220}>
+            <BarChart data={trendData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(60,60,67,0.06)" />
+              <XAxis dataKey="label" tick={{ fontSize: 11 }} />
+              <YAxis tick={{ fontSize: 11 }} />
+              <Tooltip {...tooltipProps} cursor={false} formatter={(v: any, n: any) => [formatCurrency(Number(v)), n]} />
+              <Bar dataKey="expense" fill="#ff2222" radius={[4, 4, 0, 0]} name="支出" maxBarSize={30} />
+              <Bar dataKey="income" fill="#34c759" radius={[4, 4, 0, 0]} name="收入" maxBarSize={30} />
+            </BarChart>
+          </ResponsiveContainer>
+        ) : (
+          <div className="flex items-center justify-center h-[220px] text-sm text-apple-subtext">暂无数据</div>
+        )
+      )}
+    </div>
+  ), [chartType, categoryData, trendData, dataType, COLORS, tooltipProps]);
+
+  return (
+    <div className="px-4 pt-12 stagger">
+      <div className="flex items-center justify-between mb-2">
+        <h1 className="text-2xl font-bold text-apple-text dark:text-apple-dark-text">统计</h1>
+        <div className="flex gap-2">
+          <button onClick={() => setShowCalendar(!showCalendar)}
+            className={`w-9 h-9 rounded-full flex items-center justify-center apple-btn shadow-sm transition-all ${
+              showCalendar ? 'bg-apple-blue text-white' : 'bg-white/80 dark:bg-gray-800 text-apple-subtext dark:text-apple-dark-subtext'
+            }`}>
+            <CalendarDays size={18} />
+          </button>
+        </div>
+      </div>
+      <p className="text-sm text-apple-subtext dark:text-apple-dark-subtext mb-5">
+        总收入 {formatCurrency(income)} · 总支出 {formatCurrency(expense)} · 结余 {formatCurrency(income - expense)}
+      </p>
+
+      {/* Period Tabs */}
+      <div className="apple-card p-1 flex mb-4">
+        {(['week', 'month', 'year'] as const).map(p => (
+          <button key={p} onClick={() => setPeriod(p)}
+            className={`flex-1 py-2 rounded-full text-sm font-medium transition-all ${
+              period === p ? 'bg-apple-blue text-white shadow-sm' : 'text-apple-subtext dark:text-apple-dark-subtext'
+            }`}>
+            {p === 'week' ? '本周' : p === 'month' ? '本月' : '本年'}
+          </button>
+        ))}
+      </div>
+
+      {/* Calendar */}
+      {showCalendar && (
+        <div className="apple-card p-5 mb-4">
+          {/* Month Navigation */}
+          <div className="flex items-center justify-between mb-4">
+            <button onClick={prevMonth} className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/10 apple-btn">
+              <ChevronLeft size={18} className="text-apple-text dark:text-apple-dark-text" />
+            </button>
+            <span className="font-semibold text-apple-text dark:text-apple-dark-text text-sm">
+              {calYear}年{calMonth + 1}月
+            </span>
+            <button onClick={nextMonth} className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/10 apple-btn">
+              <ChevronRight size={18} className="text-apple-text dark:text-apple-dark-text" />
+            </button>
+          </div>
+
+          {/* Day Headers */}
+          <div className="grid grid-cols-7 mb-2">
+            {WEEKDAYS.map(d => (
+              <div key={d} className="text-center text-xs text-apple-subtext dark:text-apple-dark-subtext font-medium py-1">
+                {d}
+              </div>
+            ))}
+          </div>
+
+          {/* Day Grid */}
+          <div className="grid grid-cols-7 mb-3">
+            {calendarCells.map((day, i) => {
+              if (day === null) return <div key={`e-${i}`} />;
+              const dateStr = toDateStr(day);
+              const data = dailyMap[dateStr];
+              const isToday = dateStr === getToday();
+              const isSelected = dateStr === selectedDate;
+              const hasExpense = data && data.expense > 0;
+              const hasIncome = data && data.income > 0;
+
+              return (
+                <button key={dateStr} onClick={() => setSelectedDate(dateStr)}
+                  className="flex flex-col items-center py-1.5 apple-btn rounded-lg relative">
+                  <span className={`text-xs font-medium leading-tight ${
+                    isSelected
+                      ? 'text-white'
+                      : isToday
+                        ? 'text-apple-blue'
+                        : 'text-apple-text dark:text-apple-dark-text'
+                  }`}>
+                    {day}
+                  </span>
+                  {(hasExpense || hasIncome) && !isSelected && (
+                    <span className="flex gap-0.5 mt-0.5">
+                      {hasExpense && <span className="w-1 h-1 rounded-full bg-expense" />}
+                      {hasIncome && <span className="w-1 h-1 rounded-full bg-income" />}
+                    </span>
+                  )}
+                  {isSelected && (
+                    <div className="absolute inset-0 bg-apple-blue rounded-lg -z-10" />
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Selected Date Detail */}
+          {selectedRecords.length > 0 && (
+            <div className="border-t border-apple-separator dark:border-apple-dark-separator pt-3">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs text-apple-subtext dark:text-apple-dark-subtext">
+                  {selectedDate} {selectedDate === getToday() ? '(今天)' : ''}
+                </span>
+                <div className="flex gap-3">
+                  {selectedTotalExpense > 0 && (
+                    <span className="text-xs text-expense font-medium">支出 {formatCurrency(selectedTotalExpense)}</span>
+                  )}
+                  {selectedTotalIncome > 0 && (
+                    <span className="text-xs text-income font-medium">收入 {formatCurrency(selectedTotalIncome)}</span>
+                  )}
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                {selectedRecords.map(r => (
+                  <div key={r.id} onClick={() => setClickedRecord(r)} className="flex items-center justify-between apple-btn cursor-pointer px-2 py-1.5 rounded-xl hover:bg-black/[0.03] dark:hover:bg-white/[0.04] active:bg-black/[0.06] dark:active:bg-white/[0.08] transition-colors">
+                    <div className="flex items-center gap-2">
+                      <CategoryIcon name={r.category} size={14} />
+                      {r.time && <span className="text-xs text-apple-subtext">{r.time}</span>}
+                      <span className="text-xs text-apple-text dark:text-apple-dark-text">{r.note || r.category}</span>
+                    </div>
+                    <span className={`text-xs font-medium ${r.type === 'expense' ? 'text-expense' : 'text-income'}`}>
+                      {r.type === 'expense' ? '-' : '+'}{formatCurrency(r.amount)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          {selectedRecords.length === 0 && (
+            <div className="border-t border-apple-separator dark:border-apple-dark-separator pt-3">
+              <p className="text-xs text-apple-subtext text-center py-2">当天无记录</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Type Toggle: 支出 / 收入 */}
+      <div className="apple-card p-1 flex mb-3">
+        {(['expense', 'income'] as const).map(t => (
+          <button key={t} onClick={() => setDataType(t)}
+            className={`flex-1 py-2 rounded-full text-sm font-medium transition-colors ${
+              dataType === t ? 'bg-apple-blue text-white shadow-sm' : 'text-apple-subtext dark:text-apple-dark-subtext'
+            }`}>
+            {t === 'expense' ? '支出' : '收入'}
+          </button>
+        ))}
+      </div>
+
+      {/* Chart Type Tabs */}
+      <div className="flex gap-2 mb-4">
+        {(['pie', 'bar', 'line', 'compare'] as const).map(t => (
+          <button key={t} onClick={() => setChartType(t)}
+            className={`px-4 py-1.5 rounded-full text-xs font-medium transition-all ${
+              chartType === t ? 'bg-gray-800 dark:bg-white text-white dark:text-gray-900' : 'bg-white/60 dark:bg-gray-800/60 text-apple-subtext'
+            }`}>
+            {t === 'pie' ? '饼图' : t === 'bar' ? '柱状图' : t === 'line' ? '趋势' : '对比'}
+          </button>
+        ))}
+      </div>
+
+      {/* Chart */}
+      {chartMemo}
+      {/* Category Legend */}
+      <div className="apple-card p-5 mb-4">
+        <h3 className="text-sm font-semibold text-apple-text dark:text-apple-dark-text mb-3">分类明细</h3>
+        {categoryData.length > 0 ? (
+          <div className="space-y-3">
+            {categoryData.map((cat, i) => (
+              <div key={cat.name} onClick={() => setClickedCategory(cat.name)}
+                className="flex items-center gap-3 apple-btn cursor-pointer px-2 py-1 -mx-2 rounded-xl hover:bg-black/[0.03] dark:hover:bg-white/[0.04] transition-colors">
+                <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
+                <span className="text-sm flex-1 text-apple-text dark:text-apple-dark-text"><CategoryIcon name={cat.name} size={14} /> {cat.name}</span>
+                <span className="text-sm text-apple-subtext dark:text-apple-dark-subtext">{cat.pct}</span>
+                <span className="text-sm font-semibold text-apple-text dark:text-apple-dark-text">{formatCurrency(cat.value)}</span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-apple-subtext text-center py-4">暂无记录</p>
+        )}
+      </div>
+
+      {/* Budget vs Actual Comparison */}
+      {budgets.length > 0 && (
+        <div className="apple-card p-5 mb-4">
+          <h3 className="text-sm font-semibold text-apple-text dark:text-apple-dark-text mb-3">预算对比</h3>
+          {(() => {
+            const actual: Record<string, number> = {};
+            periodRecords.filter(r => r.type === 'expense').forEach(r => {
+              actual[r.category] = (actual[r.category] || 0) + r.amount;
+            });
+            const totalBudget = budgets.reduce((s, b) => s + b.amount, 0);
+            const totalSpent = Object.values(actual).reduce((s, v) => s + v, 0);
+            const totalPct = totalBudget > 0 ? (totalSpent / totalBudget) * 100 : 0;
+            return (
+              <>
+                <div className="flex items-center justify-between mb-3 pb-3 border-b border-apple-separator dark:border-apple-dark-separator">
+                  <div>
+                    <p className="text-xs text-apple-subtext mb-0.5">预算总额</p>
+                    <p className="text-sm font-bold text-apple-text">{formatCurrency(totalBudget)}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xs text-apple-subtext mb-0.5">实际支出</p>
+                    <p className="text-sm font-bold" style={{ color: totalPct > 100 ? '#ff2222' : '#1d1d1f' }}>
+                      {formatCurrency(totalSpent)}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xs text-apple-subtext mb-0.5">使用率</p>
+                    <p className={`text-sm font-bold ${totalPct > 100 ? 'text-expense' : 'text-apple-blue'}`}>
+                      {totalPct.toFixed(0)}%
+                    </p>
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  {budgets.map(b => {
+                    const spent = actual[b.category] || 0;
+                    const pct = b.amount > 0 ? (spent / b.amount) * 100 : 0;
+                    return (
+                      <div key={b.id}>
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-xs text-apple-text dark:text-apple-dark-text">
+                            <CategoryIcon name={b.category} size={12} /> {b.category}
+                          </span>
+                          <span className="text-xs">
+                            <span className={pct > 100 ? 'text-expense font-semibold' : 'text-apple-subtext'}>
+                              {formatCurrency(spent)}
+                            </span>
+                            <span className="text-apple-subtext"> / {formatCurrency(b.amount)}</span>
+                          </span>
+                        </div>
+                        <div className="h-1.5 rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden">
+                          <div className={`h-full rounded-full transition-all duration-500 ${
+                            pct > 100 ? 'bg-expense' : pct > 80 ? 'bg-apple-orange' : 'bg-apple-blue'
+                          }`} style={{ width: `${Math.min(pct, 100)}%` }} />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            );
+          })()}
+        </div>
+      )}
+
+      {/* Period-over-Period Comparison */}
+      <div className="apple-card p-5 mb-4">
+        <h3 className="text-sm font-semibold text-apple-text dark:text-apple-dark-text mb-3">
+          {period === 'week' ? '周度对比' : period === 'year' ? '年度对比' : '月度对比'}
+        </h3>
+        <div className="grid grid-cols-2 gap-4 mb-4">
+          <div className="flex-1">
+            <p className="text-xs text-apple-subtext mb-1">本期支出</p>
+            <p className="text-lg font-bold text-apple-text dark:text-apple-dark-text">{formatCurrency(expense)}</p>
+            <div className={`flex items-center gap-0.5 mt-0.5 ${expenseChange >= 0 ? 'text-expense' : 'text-income'}`}>
+              <span className="text-xs font-medium">{expenseChange >= 0 ? '↑' : '↓'}</span>
+              <span className="text-xs">{Math.abs(expenseChange).toFixed(1)}%</span>
+              <span className="text-xs text-apple-subtext ml-0.5">vs 上{period === 'week' ? '周' : period === 'year' ? '年' : '月'}</span>
+            </div>
+          </div>
+          <div className="flex-1">
+            <p className="text-xs text-apple-subtext mb-1">上期支出</p>
+            <p className="text-lg font-bold text-apple-text dark:text-apple-dark-text">{formatCurrency(prevExpense)}</p>
+          </div>
+          <div className="flex-1">
+            <p className="text-xs text-apple-subtext mb-1">本期收入</p>
+            <p className="text-lg font-bold text-apple-text dark:text-apple-dark-text">{formatCurrency(income)}</p>
+            <div className={`flex items-center gap-0.5 mt-0.5 ${incomeChange >= 0 ? 'text-income' : 'text-expense'}`}>
+              <span className="text-xs font-medium">{incomeChange >= 0 ? '↑' : '↓'}</span>
+              <span className="text-xs">{Math.abs(incomeChange).toFixed(1)}%</span>
+              <span className="text-xs text-apple-subtext ml-0.5">vs 上{period === 'week' ? '周' : period === 'year' ? '年' : '月'}</span>
+            </div>
+          </div>
+          <div className="flex-1">
+            <p className="text-xs text-apple-subtext mb-1">上期收入</p>
+            <p className="text-lg font-bold text-apple-text dark:text-apple-dark-text">{formatCurrency(prevIncome)}</p>
+          </div>
+        </div>
+        {catCompare.length > 0 && (
+          <>
+            <p className="text-xs text-apple-subtext mb-2 font-medium">
+              {dataType === 'expense' ? '支出' : '收入'}分类变化（{period === 'week' ? '周' : period === 'year' ? '年' : '月'}环比）
+            </p>
+            <div className="space-y-2">
+              {catCompare.slice(0, 8).map(c => (
+                <div key={c.name} className="flex items-center gap-2">
+                  <CategoryIcon name={c.name} size={14} />
+                  <span className="text-xs text-apple-text dark:text-apple-dark-text flex-1 min-w-0 truncate">{c.name}</span>
+                  <div className="flex items-center gap-2 text-xs">
+                    <span className="text-apple-subtext">{formatCurrency(c.previous)}</span>
+                    <span className="text-apple-subtext">→</span>
+                    <span className="font-medium text-apple-text dark:text-apple-dark-text">{formatCurrency(c.current)}</span>
+                    <span className={`font-medium ${c.diff > 0 ? 'text-expense' : c.diff < 0 ? 'text-income' : 'text-apple-subtext'}`}>
+                      {c.diff > 0 ? '+' : ''}{formatCurrency(c.diff)}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Category Records Modal */}
+      {clickedCategory && (() => {
+        const catRecords = records.filter(r =>
+          r.type === dataType && r.category === clickedCategory &&
+          r.date >= periodRange.start && r.date <= periodRange.end
+        );
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
+            <div className="fixed inset-0 bg-black/20 fade-enter" onClick={() => setClickedCategory(null)} />
+            <div className="relative bg-white dark:bg-gray-800 rounded-3xl w-full shadow-xl modal-enter flex flex-col overflow-hidden"
+              style={{ maxWidth: 360, maxHeight: '75vh' }}>
+              <div className="p-5 pb-0 shrink-0 flex items-center justify-between">
+                <h3 className="text-base font-bold text-apple-text dark:text-apple-dark-text">
+                  <CategoryIcon name={clickedCategory} size={16} /> {clickedCategory}
+                </h3>
+                <button onClick={() => setClickedCategory(null)}
+                  className="w-7 h-7 rounded-full flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/10 apple-btn">
+                  <X size={14} className="text-apple-subtext" />
+                </button>
+              </div>
+              {catRecords.length > 0 ? (
+                <div className="p-5 overflow-y-auto min-h-0 flex-1 space-y-2">
+                  {catRecords.map(r => (
+                    <div key={r.id} onClick={() => { setClickedRecord(r); setClickedCategory(null); }}
+                      className="flex items-center gap-3 px-3 py-2.5 rounded-xl apple-btn cursor-pointer hover:bg-black/[0.03] dark:hover:bg-white/[0.04] active:bg-black/[0.06] transition-colors">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm text-apple-text dark:text-apple-dark-text truncate">{r.note || clickedCategory}</p>
+                        <p className="text-xs text-apple-subtext">{r.date} {r.time || ''}</p>
+                      </div>
+                      <span className="text-sm font-semibold text-expense">-{formatCurrency(r.amount)}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="p-5 text-center">
+                  <p className="text-sm text-apple-subtext">暂无记录</p>
+                </div>
+              )}
+              <div className="px-5 pb-4 shrink-0">
+                <button onClick={() => setClickedCategory(null)}
+                  className="w-full py-3 rounded-2xl font-semibold text-sm bg-gray-100 dark:bg-gray-700 text-apple-text dark:text-apple-dark-text apple-btn">
+                  关闭
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Record Action Modal */}
+      {clickedRecord && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
+          <div className="fixed inset-0 bg-black/20 fade-enter" onClick={() => setClickedRecord(null)} />
+          <div className="relative bg-white dark:bg-gray-800 rounded-3xl w-full overflow-y-auto shadow-xl modal-enter"
+            style={{ maxWidth: 340, maxHeight: '80vh' }}>
+            <div className="p-6">
+              <button onClick={() => setClickedRecord(null)} className="absolute top-3 right-3 w-8 h-8 rounded-full flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/10 apple-btn">
+                <X size={16} className="text-apple-subtext" />
+              </button>
+              <div className="flex items-center gap-3 mb-5 pb-4 border-b border-apple-separator dark:border-apple-dark-separator">
+                <div className="w-12 h-12 rounded-full flex items-center justify-center text-xl"
+                  style={{ background: clickedRecord.type === 'expense' ? 'rgba(255,59,48,0.08)' : 'rgba(52,199,89,0.08)' }}>
+                  <CategoryIcon name={clickedRecord.category} size={20} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-apple-text dark:text-apple-dark-text truncate">{clickedRecord.note || clickedRecord.category}</p>
+                  <p className="text-xs text-apple-subtext dark:text-apple-dark-subtext">
+                    {formatDate(clickedRecord.date)} {clickedRecord.time || ''}
+                  </p>
+                </div>
+                <span className={`text-lg font-bold shrink-0 ${clickedRecord.type === 'expense' ? 'text-expense' : 'text-income'}`}>
+                  {clickedRecord.type === 'expense' ? '-' : '+'}{formatCurrency(clickedRecord.amount)}
+                </span>
+              </div>
+              <div className="flex gap-3">
+                <button onClick={() => {
+                  navigate('/add', { state: { editRecord: clickedRecord } });
+                  setClickedRecord(null);
+                }}
+                  className="flex-1 py-3 rounded-2xl font-semibold text-sm flex items-center justify-center gap-2 apple-btn"
+                  style={{ background: 'rgba(79,124,255,0.1)', color: '#4f7cff' }}>
+                  <Edit3 size={16} />
+                  编辑
+                </button>
+                <button onClick={() => {
+                  if (confirm('确定删除这条记录吗？')) {
+                    deleteRecord(clickedRecord.id);
+                    setClickedRecord(null);
+                  }
+                }}
+                  className="flex-1 py-3 rounded-2xl font-semibold text-sm flex items-center justify-center gap-2 apple-btn"
+                  style={{ background: 'rgba(255,59,48,0.1)', color: '#ff3b30' }}>
+                  <Trash2 size={16} />
+                  删除
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
