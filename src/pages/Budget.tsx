@@ -34,7 +34,7 @@ export default function BudgetPage() {
   const [selectedDate, setSelectedDate] = useState(today);
   const dailyBudgetAmt = dailyBudgets[selectedDate] || 0;
   const dailyExpense = records
-    .filter(r => r.type === 'expense' && r.date === selectedDate)
+    .filter(r => r.type === 'expense' && r.date === selectedDate && !r.excludeFromBudget)
     .reduce((s, r) => s + r.amount, 0);
   const [dailyInput, setDailyInput] = useState(dailyBudgetAmt > 0 ? String(dailyBudgetAmt) : '');
 
