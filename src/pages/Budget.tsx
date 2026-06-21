@@ -86,10 +86,11 @@ export default function BudgetPage() {
   const handleSave = () => {
     const val = parseFloat(amount);
     if (!val || val <= 0) return;
+    const cat = category || '总预算';
     if (editId) {
-      updateBudget(editId, { category, amount: val });
+      updateBudget(editId, { category: cat, amount: val });
     } else {
-      addBudget({ category, amount: val });
+      addBudget({ category: cat, amount: val });
     }
     setShowForm(false);
     setEditId(null);
@@ -282,6 +283,14 @@ export default function BudgetPage() {
                 {editId ? '编辑预算' : '新增预算'}
               </h3>
               <div className="grid grid-cols-4 gap-3 mb-4">
+                {/* 总预算选项 */}
+                <button onClick={() => setCategory('')}
+                  className={`flex flex-col items-center gap-1 py-2 rounded-xl transition-all ${
+                    category === '' ? 'bg-apple-blue/10 border border-apple-blue/30' : ''
+                  }`}>
+                  <PiggyBank size={18} className={category === '' ? 'text-apple-blue' : 'text-apple-subtext'} />
+                  <span className={`text-xs ${category === '' ? 'text-apple-blue font-semibold' : 'text-apple-subtext'}`}>总预算</span>
+                </button>
                 {(showAllCats ? getExpenseCategories() : getExpenseCategories().slice(0, 8)).map(c => (
                   <button key={c.name} onClick={() => setCategory(c.name)}
                     className={`flex flex-col items-center gap-1 py-2 rounded-xl transition-all ${
@@ -300,7 +309,7 @@ export default function BudgetPage() {
               )}
 
               {/* Spend info for selected category */}
-              {catSpent(category) > 0 && (
+              {category && catSpent(category) > 0 && (
                 <p className="text-xs text-apple-subtext mb-3 text-center">
                   本月已花费 {formatCurrency(catSpent(category))}
                 </p>
