@@ -170,7 +170,8 @@ export default function BudgetPage() {
       </div>
 
       {/* Budget Overview */}
-      <div className="apple-card p-6 mb-4 text-center">
+      <div className="apple-card p-6 mb-4 text-center apple-btn hover:bg-black/[0.02] dark:hover:bg-white/[0.02] active:bg-black/[0.05] dark:active:bg-white/[0.05] transition-colors cursor-pointer"
+        onClick={openAdd}>
         <div className="w-14 h-14 rounded-full bg-apple-blue/10 flex items-center justify-center mx-auto mb-3">
           <PiggyBank size={28} color="#4f7cff" />
         </div>
@@ -205,17 +206,12 @@ export default function BudgetPage() {
               </p>
             )}
             {budgets.map(b => {
-              const isTotal = b.category === '总预算';
-              const spent = isTotal ? totalSpent : catSpent(b.category);
+              const spent = catSpent(b.category);
               const pct = b.amount > 0 ? (spent / b.amount) * 100 : 0;
               if (pct < 80) return null;
               return (
                 <p key={b.id} className="text-xs text-apple-text dark:text-apple-dark-text">
-                  {isTotal
-                    ? <PiggyBank size={14} className="inline text-apple-blue mr-1" />
-                    : <CategoryIcon name={b.category} size={14} />
-                  }
-                  {b.category} 已使用 <span className="font-semibold">{pct.toFixed(0)}%</span>
+                  <CategoryIcon name={b.category} size={14} /> {b.category} 已使用 <span className="font-semibold">{pct.toFixed(0)}%</span>
                   {pct >= 100 && <span className="text-expense font-semibold">（超支 {formatCurrency(spent - b.amount)}）</span>}
                 </p>
               );
@@ -232,17 +228,13 @@ export default function BudgetPage() {
         {budgets.length > 0 ? (
           <div className="divide-y divide-apple-separator dark:divide-apple-dark-separator">
             {budgets.map(b => {
-              const isTotal = b.category === '总预算';
-              const spent = isTotal ? totalSpent : catSpent(b.category);
+              const spent = catSpent(b.category);
               const pct = b.amount > 0 ? (spent / b.amount) * 100 : 0;
               return (
                 <div key={b.id} className="px-4 py-3">
                   <div className="flex items-center justify-between mb-2">
                     <button onClick={() => openEdit(b)} className="flex items-center gap-2 apple-btn flex-1 min-w-0 text-left px-2 py-1 -mx-2 rounded-xl hover:bg-black/[0.03] dark:hover:bg-white/[0.04] active:bg-black/[0.06] dark:active:bg-white/[0.08] transition-colors">
-                      {isTotal
-                        ? <PiggyBank size={16} className="text-apple-blue" />
-                        : <CategoryIcon name={b.category} size={16} />
-                      }
+                      <CategoryIcon name={b.category} size={16} />
                       <span className="text-sm font-medium text-apple-text dark:text-apple-dark-text">{b.category}</span>
                     </button>
                     <div className="flex items-center gap-2">
@@ -291,14 +283,6 @@ export default function BudgetPage() {
                 {editId ? '编辑预算' : '新增预算'}
               </h3>
               <div className="grid grid-cols-4 gap-3 mb-4">
-                {/* 总预算选项 */}
-                <button onClick={() => setCategory('总预算')}
-                  className={`flex flex-col items-center gap-1 py-2 rounded-xl transition-all ${
-                    category === '总预算' ? 'bg-apple-blue/10 border border-apple-blue/30' : ''
-                  }`}>
-                  <PiggyBank size={18} className={category === '总预算' ? 'text-apple-blue' : 'text-apple-subtext'} />
-                  <span className={`text-xs ${category === '总预算' ? 'text-apple-blue font-semibold' : 'text-apple-subtext'}`}>总预算</span>
-                </button>
                 {(showAllCats ? getExpenseCategories() : getExpenseCategories().slice(0, 8)).map(c => (
                   <button key={c.name} onClick={() => setCategory(c.name)}
                     className={`flex flex-col items-center gap-1 py-2 rounded-xl transition-all ${
@@ -317,7 +301,7 @@ export default function BudgetPage() {
               )}
 
               {/* Spend info for selected category */}
-              {category !== '总预算' && catSpent(category) > 0 && (
+              {catSpent(category) > 0 && (
                 <p className="text-xs text-apple-subtext mb-3 text-center">
                   本月已花费 {formatCurrency(catSpent(category))}
                 </p>
