@@ -15,6 +15,7 @@ export default function BudgetPage() {
   const getExpenseCategories = useStore(s => s.getExpenseCategories);
   const records = useStore(s => s.records);
   const [showForm, setShowForm] = useState(false);
+  const [showSetup, setShowSetup] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [category, setCategory] = useState('餐饮');
   const [amount, setAmount] = useState('');
@@ -26,6 +27,34 @@ export default function BudgetPage() {
   const catTotals = getCategoryTotals(month, 'expense') as Record<string, number>;
 
   const catSpent = (cat: string) => catTotals[cat] || 0;
+
+  // Budget setup state
+  const [setupAmounts, setSetupAmounts] = useState<Record<string, string>>({});
+  const openSetup = () => {
+    const amounts: Record<string, string> = {};
+    getExpenseCategories().forEach(c => {
+      const b = budgets.find(b => b.category === c.name);
+      amounts[c.name] = b ? String(b.amount) : '';
+    });
+    setSetupAmounts(amounts);
+    setShowSetup(true);
+  };
+  const saveSetup = () => {
+    getExpenseCategories().forEach(c => {
+      const val = parseFloat(setupAmounts[c.name] || '');
+      const existing = budgets.find(b => b.category === c.name);
+      if (val > 0) {
+        if (existing) {
+          updateBudget(existing.id, { category: c.name, amount: val });
+        } else {
+          addBudget({ category: c.name, amount: val });
+        }
+      } else if (existing) {
+        deleteBudget(existing.id);
+      }
+    });
+    setShowSetup(false);
+  };
 
   // Daily budget
   const today = getToday();
@@ -171,7 +200,7 @@ export default function BudgetPage() {
 
       {/* Budget Overview */}
       <div className="apple-card p-6 mb-4 text-center apple-btn hover:bg-black/[0.02] dark:hover:bg-white/[0.02] active:bg-black/[0.05] dark:active:bg-white/[0.05] transition-colors cursor-pointer"
-        onClick={openAdd}>
+        onClick={openSetup}>
         <div className="w-14 h-14 rounded-full bg-apple-blue/10 flex items-center justify-center mx-auto mb-3">
           <PiggyBank size={28} color="#4f7cff" />
         </div>
@@ -344,6 +373,61 @@ export default function BudgetPage() {
                   }}>
                   <Check size={16} strokeWidth={3} />
                   {editId ? '保存' : '添加'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Budget Setup Modal */}
+      {showSetup && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
+          <div className="fixed inset-0 bg-black/20 fade-enter" onClick={() => setShowSetup(false)} />
+          <div className="relative bg-white dark:bg-gray-800 rounded-3xl w-full overflow-y-auto shadow-xl modal-enter"
+            style={{ maxWidth: 360, maxHeight: '80vh' }}>
+            <div className="p-6">
+              <h3 className="text-lg font-bold text-apple-text dark:text-apple-dark-text mb-4">设置分类预算</h3>
+              <div className="space-y-3 max-h-[50vh] overflow-y-auto">
+                {getExpenseCategories().map(c => (
+                  <div key={c.name} className="flex items-center gap-3">
+                    <div className="flex items-center gap-2 min-w-0 shrink-0" style={{ width: 60 }}>
+                      <CategoryIcon name={c.name} size={16} />
+                      <span className="text-xs text-apple-text dark:text-apple-dark-text truncate">{c.name}</span>
+                    </div>
+                    <div className="flex-1 flex items-center gap-2">
+                      <span className="text-[10px] text-apple-subtext shrink-0">¥</span>
+                      <input type="number" value={setupAmounts[c.name] ?? ''} onChange={e => setSetupAmounts(p => ({ ...p, [c.name]: e.target.value }))}
+                        placeholder="0"
+                        className="flex-1 px-3 py-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-sm text-center outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" />
+                    </div>
+                    {catSpent(c.name) > 0 && (
+                      <span className="text-[10px] text-apple-subtext shrink-0 whitespace-nowrap">
+                        已用 {formatCurrency(catSpent(c.name))}
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+              <div className="flex items-center justify-between mt-4 pt-3 border-t border-apple-separator dark:border-apple-dark-separator">
+                <span className="text-xs text-apple-subtext">总计</span>
+                <span className="text-sm font-bold text-apple-text dark:text-apple-dark-text">
+                  {formatCurrency(Object.entries(setupAmounts).reduce((s, [, v]) => s + (parseFloat(v) || 0), 0))}
+                </span>
+              </div>
+              <div className="flex gap-3 mt-4">
+                <button onClick={() => setShowSetup(false)}
+                  className="flex-1 py-3 rounded-2xl font-semibold text-sm bg-gray-100 dark:bg-gray-700 text-apple-text dark:text-apple-dark-text apple-btn">
+                  取消
+                </button>
+                <button onClick={saveSetup}
+                  className="flex-1 py-3 rounded-2xl font-semibold text-sm text-white apple-btn flex items-center justify-center gap-1.5"
+                  style={{
+                    background: 'linear-gradient(135deg, #4f7cff, #6b9bff)',
+                    boxShadow: '0 4px 12px rgba(79,124,255,0.3)',
+                  }}>
+                  <Check size={16} strokeWidth={3} />
+                  保存
                 </button>
               </div>
             </div>
