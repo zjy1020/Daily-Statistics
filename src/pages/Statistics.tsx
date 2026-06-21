@@ -25,6 +25,7 @@ export default function Statistics() {
   const records = useStore(s => s.records);
   const deleteRecord = useStore(s => s.deleteRecord);
   const budgets = useStore(s => s.budgets);
+  const monthlyBudget = useStore(s => s.monthlyBudget);
   const getMonthlyTrend = useStore(s => s.getMonthlyTrend);
   const darkMode = useStore(s => s.darkMode);
 
@@ -477,7 +478,7 @@ export default function Statistics() {
             periodRecords.filter(r => r.type === 'expense').forEach(r => {
               actual[r.category] = (actual[r.category] || 0) + r.amount;
             });
-            const totalBudget = budgets.reduce((s, b) => s + b.amount, 0);
+            const totalBudget = monthlyBudget > 0 ? monthlyBudget : budgets.reduce((s, b) => s + b.amount, 0);
             const totalSpent = Object.values(actual).reduce((s, v) => s + v, 0);
             const totalPct = totalBudget > 0 ? (totalSpent / totalBudget) * 100 : 0;
             return (

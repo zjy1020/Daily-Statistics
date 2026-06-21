@@ -17,29 +17,30 @@ export default function BudgetPage() {
   const monthlyBudget = useStore(s => s.monthlyBudget);
   const setMonthlyBudget = useStore(s => s.setMonthlyBudget);
   const [showForm, setShowForm] = useState(false);
-  const [showSetup, setShowSetup] = useState(false);
-  const [setupInput, setSetupInput] = useState('');
+  const [showTotalEdit, setShowTotalEdit] = useState(false);
+  const [totalInput, setTotalInput] = useState('');
   const [editId, setEditId] = useState<string | null>(null);
   const [category, setCategory] = useState('餐饮');
   const [amount, setAmount] = useState('');
   const [showAllCats, setShowAllCats] = useState(false);
 
   const month = getThisMonth();
-  const totalBudget = monthlyBudget > 0 ? monthlyBudget : budgets.reduce((s, b) => s + b.amount, 0);
+  const catTotal = budgets.reduce((s, b) => s + b.amount, 0);
+  const totalBudget = monthlyBudget > 0 ? monthlyBudget : catTotal;
   const totalSpent = getMonthlyExpense();
+  const unallocated = monthlyBudget > 0 ? monthlyBudget - catTotal : 0;
   const catTotals = getCategoryTotals(month, 'expense') as Record<string, number>;
 
   const catSpent = (cat: string) => catTotals[cat] || 0;
 
-  // Budget setup state
-  const openSetup = () => {
-    setSetupInput(monthlyBudget > 0 ? String(monthlyBudget) : '');
-    setShowSetup(true);
+  const openTotalEdit = () => {
+    setTotalInput(monthlyBudget > 0 ? String(monthlyBudget) : '');
+    setShowTotalEdit(true);
   };
-  const saveSetup = () => {
-    const val = parseFloat(setupInput);
+  const saveTotal = () => {
+    const val = parseFloat(totalInput);
     setMonthlyBudget(val > 0 ? val : 0);
-    setShowSetup(false);
+    setShowTotalEdit(false);
   };
 
   // Daily budget
@@ -185,13 +186,23 @@ export default function BudgetPage() {
       </div>
 
       {/* Budget Overview */}
-      <div className="apple-card p-6 mb-4 text-center apple-btn hover:bg-black/[0.02] dark:hover:bg-white/[0.02] active:bg-black/[0.05] dark:active:bg-white/[0.05] transition-colors cursor-pointer"
-        onClick={openSetup}>
+      <div className="apple-card p-6 mb-4 text-center">
         <div className="w-14 h-14 rounded-full bg-apple-blue/10 flex items-center justify-center mx-auto mb-3">
           <PiggyBank size={28} color="#4f7cff" />
         </div>
         <p className="text-sm text-apple-subtext dark:text-apple-dark-subtext mb-1">预算总额</p>
         <p className="text-3xl font-bold text-apple-text dark:text-apple-dark-text mb-3">{formatCurrency(totalBudget)}</p>
+        {monthlyBudget > 0 && (
+          <div className="flex items-center justify-center gap-4 mb-2">
+            <span className="text-xs text-apple-subtext">已分配 {formatCurrency(catTotal)}</span>
+            <span className="text-xs font-medium" style={{ color: unallocated >= 0 ? '#34c759' : '#ff3b30' }}>
+              {unallocated >= 0 ? `未分配 ${formatCurrency(unallocated)}` : `超分配 ${formatCurrency(Math.abs(unallocated))}`}
+            </span>
+          </div>
+        )}
+        {monthlyBudget > 0 && unallocated > 0 && (
+          <p className="text-[10px] text-apple-subtext mb-1">未分配预算可通过 + 按钮添加到分类</p>
+        )}
         <div className="h-2 rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden mb-2">
           <div className="h-full rounded-full transition-all duration-500"
             style={{
@@ -203,10 +214,26 @@ export default function BudgetPage() {
         </div>
         <p className="text-xs text-apple-subtext dark:text-apple-dark-subtext">
           已使用 {formatCurrency(totalSpent)} / {formatCurrency(totalBudget)}
-          {totalBudget > 0 && totalSpent > totalBudget && (
-            <span className="text-expense font-medium"> · 超支 {formatCurrency(totalSpent - totalBudget)}</span>
-          )}
         </p>
+        {totalBudget > 0 && (
+          <p className={`text-xs font-medium mt-0.5 ${totalSpent > totalBudget ? 'text-expense' : 'text-apple-blue'}`}>
+            {totalSpent > totalBudget
+              ? `超支 ${formatCurrency(totalSpent - totalBudget)}`
+              : `剩余 ${formatCurrency(totalBudget - totalSpent)}`
+            }
+          </p>
+        )}
+        {monthlyBudget > 0 ? (
+          <button onClick={openTotalEdit}
+            className="mt-3 text-xs text-apple-blue font-medium apple-btn hover:underline">
+            修改总额
+          </button>
+        ) : (
+          <button onClick={openTotalEdit}
+            className="mt-3 text-xs text-apple-blue font-medium apple-btn hover:underline">
+            设置总额
+          </button>
+        )}
       </div>
 
       {/* Budget Alerts */}
@@ -322,6 +349,13 @@ export default function BudgetPage() {
                 </p>
               )}
 
+              {monthlyBudget > 0 && !editId && (
+                <p className="text-xs text-center mb-3"
+                  style={{ color: unallocated >= 0 ? '#34c759' : '#ff3b30' }}>
+                  剩余可分配预算 {formatCurrency(Math.max(0, unallocated))}
+                </p>
+              )}
+
               <div className="flex items-center gap-2 mb-4">
                 <button onClick={() => {
                   const v = parseFloat(amount) || 0;
@@ -366,30 +400,26 @@ export default function BudgetPage() {
         </div>
       )}
 
-      {/* Budget Setup Modal */}
-      {showSetup && (
+      {/* Total Budget Edit Modal */}
+      {showTotalEdit && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
-          <div className="fixed inset-0 bg-black/20 fade-enter" onClick={() => setShowSetup(false)} />
-          <div className="relative bg-white dark:bg-gray-800 rounded-3xl w-full overflow-y-auto shadow-xl modal-enter"
-            style={{ maxWidth: 320, maxHeight: '80vh' }}>
+          <div className="fixed inset-0 bg-black/20 fade-enter" onClick={() => setShowTotalEdit(false)} />
+          <div className="relative bg-white dark:bg-gray-800 rounded-3xl w-full shadow-xl modal-enter"
+            style={{ maxWidth: 360 }}>
             <div className="p-6">
-              <h3 className="text-lg font-bold text-apple-text dark:text-apple-dark-text text-center mb-4">设置月预算总额</h3>
-              <div className="flex items-center gap-2 mb-6">
-                <span className="text-sm text-apple-subtext font-medium">¥</span>
-                <input type="number" value={setupInput} onChange={e => setSetupInput(e.target.value)}
+              <h3 className="text-lg font-bold text-apple-text dark:text-apple-dark-text text-center mb-4">设置预算总额</h3>
+              <div className="flex items-center gap-2 mb-4">
+                <span className="text-lg font-medium text-apple-subtext">¥</span>
+                <input type="number" value={totalInput} onChange={e => setTotalInput(e.target.value)}
                   placeholder="输入月预算总额"
-                  autoFocus
-                  className="flex-1 px-4 py-3 rounded-2xl bg-gray-100 dark:bg-gray-700 text-lg text-center font-bold outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" />
+                  className="flex-1 px-3 py-2.5 rounded-xl bg-gray-100 dark:bg-gray-700 text-base font-bold text-center outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" />
               </div>
-              <p className="text-xs text-apple-subtext text-center mb-4">
-                本月已支出 {formatCurrency(totalSpent)}
-              </p>
               <div className="flex gap-3">
-                <button onClick={() => setShowSetup(false)}
+                <button onClick={() => setShowTotalEdit(false)}
                   className="flex-1 py-3 rounded-2xl font-semibold text-sm bg-gray-100 dark:bg-gray-700 text-apple-text dark:text-apple-dark-text apple-btn">
                   取消
                 </button>
-                <button onClick={saveSetup}
+                <button onClick={saveTotal}
                   className="flex-1 py-3 rounded-2xl font-semibold text-sm text-white apple-btn flex items-center justify-center gap-1.5"
                   style={{
                     background: 'linear-gradient(135deg, #4f7cff, #6b9bff)',
@@ -403,6 +433,7 @@ export default function BudgetPage() {
           </div>
         </div>
       )}
+
     </div>
   );
 }

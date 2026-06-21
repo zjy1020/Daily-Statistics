@@ -36,6 +36,7 @@ export default function Dashboard() {
   const getExpenseCategories = useStore(s => s.getExpenseCategories);
   const dailyBudgets = useStore(s => s.dailyBudgets);
   const setDailyBudget = useStore(s => s.setDailyBudget);
+  const monthlyBudget = useStore(s => s.monthlyBudget);
   const userName = useStore(s => s.userName);
   const [selectedRecord, setSelectedRecord] = useState<ExpenseRecord | null>(null);
   const [showSearch, setShowSearch] = useState(false);
@@ -102,7 +103,7 @@ export default function Dashboard() {
   const monthExpense = getMonthlyExpense();
   const monthIncome = getMonthlyIncome();
   const todayExpense = getTodayTotal('expense');
-  const budgetTotal = budgets.reduce((s, b) => s + b.amount, 0);
+  const budgetTotal = monthlyBudget > 0 ? monthlyBudget : budgets.reduce((s, b) => s + b.amount, 0);
   const budgetRemaining = Math.max(budgetTotal - monthExpense, 0);
   const dailyAvg = monthExpense / new Date().getDate();
   const balance = monthIncome - monthExpense;
