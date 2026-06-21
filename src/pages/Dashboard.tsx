@@ -341,15 +341,15 @@ export default function Dashboard() {
 
             {/* Month Overview Card */}
       <div className="apple-card p-6 mb-3">
-        <div className="flex items-start justify-between mb-4">
-          <div className="min-w-0">
+        <div className="flex items-start justify-between gap-4 mb-4">
+          <div className="min-w-0 max-w-full">
             <p className="text-sm text-apple-subtext dark:text-apple-dark-subtext mb-1">本月总支出</p>
-            <p className="text-4xl font-bold text-apple-text dark:text-apple-dark-text"
+            <p className="text-2xl sm:text-4xl font-bold text-apple-text dark:text-apple-dark-text"
               style={{ fontWeight: 700, letterSpacing: -1 }}>
               {formatCurrency(monthExpense)}
             </p>
           </div>
-          <div className="flex gap-4 shrink-0">
+          <div className="flex gap-4 shrink-0 self-start">
             <div className="text-right">
               <p className="text-[11px] text-apple-subtext mb-0.5">本月结余</p>
               <p className={`text-base font-bold ${balance >= 0 ? 'text-income' : 'text-expense'}`}
