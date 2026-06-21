@@ -12,6 +12,7 @@ interface AppState {
   customExpenseCategories: Category[];
   customIncomeCategories: Category[];
   dailyBudgets: Record<string, number>;
+  monthlyBudget: number;
   userName: string;
   avatar: string;
   bio: string;
@@ -30,6 +31,7 @@ interface AppState {
   updateBudget: (id: string, data: Partial<Budget>) => void;
   deleteBudget: (id: string) => void;
   setDailyBudget: (date: string, amount: number) => void;
+  setMonthlyBudget: (amount: number) => void;
   toggleDarkMode: () => void;
   setUserName: (name: string) => void;
   setAvatar: (emoji: string) => void;
@@ -54,7 +56,7 @@ interface AppState {
   importJSON: (json: string) => string;
 }
 
-function loadData(): { records: ExpenseRecord[]; budgets: Budget[]; darkMode: boolean; customExpenseCategories: Category[]; customIncomeCategories: Category[]; dailyBudgets: Record<string, number>; userName: string; avatar: string; bio: string; wallpaperEnabled: boolean; wallpaperUrl: string; wallpaperBlur: number; wallpaperPositionX: number; wallpaperPositionY: number } {
+function loadData(): { records: ExpenseRecord[]; budgets: Budget[]; darkMode: boolean; customExpenseCategories: Category[]; customIncomeCategories: Category[]; dailyBudgets: Record<string, number>; monthlyBudget: number; userName: string; avatar: string; bio: string; wallpaperEnabled: boolean; wallpaperUrl: string; wallpaperBlur: number; wallpaperPositionX: number; wallpaperPositionY: number } {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
@@ -71,6 +73,7 @@ function loadData(): { records: ExpenseRecord[]; budgets: Budget[]; darkMode: bo
         customExpenseCategories: migCats(parsed.customExpenseCategories || []),
         customIncomeCategories: migCats(parsed.customIncomeCategories || []),
         dailyBudgets: parsed.dailyBudgets || {},
+        monthlyBudget: parsed.monthlyBudget ?? 0,
         userName: parsed.userName || '',
         avatar: parsed.avatar || '👤',
         bio: parsed.bio || '',
@@ -82,10 +85,10 @@ function loadData(): { records: ExpenseRecord[]; budgets: Budget[]; darkMode: bo
       };
     }
   } catch { /* ignore */ }
-  return { records: [], budgets: [], darkMode: false, customExpenseCategories: [], customIncomeCategories: [], dailyBudgets: {}, userName: '', avatar: '👤', bio: '', wallpaperEnabled: true, wallpaperUrl: '/gj.webp', wallpaperBlur: 6, wallpaperPositionX: 50, wallpaperPositionY: 50 };
+  return { records: [], budgets: [], darkMode: false, customExpenseCategories: [], customIncomeCategories: [], dailyBudgets: {}, monthlyBudget: 0, userName: '', avatar: '👤', bio: '', wallpaperEnabled: true, wallpaperUrl: '/gj.webp', wallpaperBlur: 6, wallpaperPositionX: 50, wallpaperPositionY: 50 };
 }
 
-function saveData(state: { records: ExpenseRecord[]; budgets: Budget[]; darkMode: boolean; customExpenseCategories: Category[]; customIncomeCategories: Category[]; dailyBudgets: Record<string, number>; userName: string; avatar: string; bio: string; wallpaperEnabled: boolean; wallpaperUrl: string; wallpaperBlur: number; wallpaperPositionX: number; wallpaperPositionY: number }) {
+function saveData(state: { records: ExpenseRecord[]; budgets: Budget[]; darkMode: boolean; customExpenseCategories: Category[]; customIncomeCategories: Category[]; dailyBudgets: Record<string, number>; monthlyBudget: number; userName: string; avatar: string; bio: string; wallpaperEnabled: boolean; wallpaperUrl: string; wallpaperBlur: number; wallpaperPositionX: number; wallpaperPositionY: number }) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 }
 
@@ -98,6 +101,7 @@ export const useStore = create<AppState>((set, get) => ({
   customExpenseCategories: initial.customExpenseCategories,
   customIncomeCategories: initial.customIncomeCategories,
   dailyBudgets: initial.dailyBudgets,
+  monthlyBudget: initial.monthlyBudget,
   userName: initial.userName,
   avatar: initial.avatar,
   bio: initial.bio,
@@ -174,6 +178,12 @@ export const useStore = create<AppState>((set, get) => ({
     return next;
   }),
 
+  setMonthlyBudget: (amount) => set((s) => {
+    const next = { ...s, monthlyBudget: amount };
+    saveData(next);
+    return next;
+  }),
+
   setUserName: (name) => set((s) => {
     const next = { ...s, userName: name };
     saveData(next);
@@ -205,7 +215,7 @@ export const useStore = create<AppState>((set, get) => ({
   }),
 
   clearAllData: () => set((s) => {
-    const next = { ...s, records: [], budgets: [], dailyBudgets: {}, customExpenseCategories: [], customIncomeCategories: [], userName: '', avatar: '👤', bio: '', wallpaperEnabled: true, wallpaperUrl: '/gj.webp', wallpaperBlur: 6, wallpaperPositionX: 50, wallpaperPositionY: 50 };
+    const next = { ...s, records: [], budgets: [], dailyBudgets: {}, monthlyBudget: 0, customExpenseCategories: [], customIncomeCategories: [], userName: '', avatar: '👤', bio: '', wallpaperEnabled: true, wallpaperUrl: '/gj.webp', wallpaperBlur: 6, wallpaperPositionX: 50, wallpaperPositionY: 50 };
     saveData(next);
     return next;
   }),
@@ -305,8 +315,8 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
   exportJSON: () => {
-    const { records, budgets, dailyBudgets, customExpenseCategories, customIncomeCategories, darkMode, userName, avatar, bio, wallpaperEnabled, wallpaperUrl, wallpaperBlur, wallpaperPositionX, wallpaperPositionY } = get();
-    return JSON.stringify({ records, budgets, dailyBudgets, customExpenseCategories, customIncomeCategories, darkMode, userName, avatar, bio, wallpaperEnabled, wallpaperUrl, wallpaperBlur, wallpaperPositionX, wallpaperPositionY, exportedAt: Date.now() });
+    const { records, budgets, dailyBudgets, monthlyBudget, customExpenseCategories, customIncomeCategories, darkMode, userName, avatar, bio, wallpaperEnabled, wallpaperUrl, wallpaperBlur, wallpaperPositionX, wallpaperPositionY } = get();
+    return JSON.stringify({ records, budgets, dailyBudgets, monthlyBudget, customExpenseCategories, customIncomeCategories, darkMode, userName, avatar, bio, wallpaperEnabled, wallpaperUrl, wallpaperBlur, wallpaperPositionX, wallpaperPositionY, exportedAt: Date.now() });
   },
 
   importJSON: (json) => {
@@ -319,6 +329,7 @@ export const useStore = create<AppState>((set, get) => ({
           records: data.records,
           budgets: data.budgets || [],
           dailyBudgets: data.dailyBudgets || {},
+          monthlyBudget: data.monthlyBudget ?? 0,
           customExpenseCategories: data.customExpenseCategories || [],
           customIncomeCategories: data.customIncomeCategories || [],
           darkMode: data.darkMode ?? false,
@@ -366,6 +377,7 @@ const doAutoBackup = async () => {
       records: s.records,
       budgets: s.budgets,
       dailyBudgets: s.dailyBudgets,
+      monthlyBudget: s.monthlyBudget,
       customExpenseCategories: s.customExpenseCategories,
       customIncomeCategories: s.customIncomeCategories,
       darkMode: s.darkMode,

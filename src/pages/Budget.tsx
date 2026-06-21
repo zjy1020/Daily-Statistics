@@ -14,45 +14,31 @@ export default function BudgetPage() {
   const getCategoryTotals = useStore(s => s.getCategoryTotals);
   const getExpenseCategories = useStore(s => s.getExpenseCategories);
   const records = useStore(s => s.records);
+  const monthlyBudget = useStore(s => s.monthlyBudget);
+  const setMonthlyBudget = useStore(s => s.setMonthlyBudget);
   const [showForm, setShowForm] = useState(false);
   const [showSetup, setShowSetup] = useState(false);
+  const [setupInput, setSetupInput] = useState('');
   const [editId, setEditId] = useState<string | null>(null);
   const [category, setCategory] = useState('餐饮');
   const [amount, setAmount] = useState('');
   const [showAllCats, setShowAllCats] = useState(false);
 
   const month = getThisMonth();
-  const totalBudget = budgets.reduce((s, b) => s + b.amount, 0);
+  const totalBudget = monthlyBudget > 0 ? monthlyBudget : budgets.reduce((s, b) => s + b.amount, 0);
   const totalSpent = getMonthlyExpense();
   const catTotals = getCategoryTotals(month, 'expense') as Record<string, number>;
 
   const catSpent = (cat: string) => catTotals[cat] || 0;
 
   // Budget setup state
-  const [setupAmounts, setSetupAmounts] = useState<Record<string, string>>({});
   const openSetup = () => {
-    const amounts: Record<string, string> = {};
-    getExpenseCategories().forEach(c => {
-      const b = budgets.find(b => b.category === c.name);
-      amounts[c.name] = b ? String(b.amount) : '';
-    });
-    setSetupAmounts(amounts);
+    setSetupInput(monthlyBudget > 0 ? String(monthlyBudget) : '');
     setShowSetup(true);
   };
   const saveSetup = () => {
-    getExpenseCategories().forEach(c => {
-      const val = parseFloat(setupAmounts[c.name] || '');
-      const existing = budgets.find(b => b.category === c.name);
-      if (val > 0) {
-        if (existing) {
-          updateBudget(existing.id, { category: c.name, amount: val });
-        } else {
-          addBudget({ category: c.name, amount: val });
-        }
-      } else if (existing) {
-        deleteBudget(existing.id);
-      }
-    });
+    const val = parseFloat(setupInput);
+    setMonthlyBudget(val > 0 ? val : 0);
     setShowSetup(false);
   };
 
@@ -385,37 +371,20 @@ export default function BudgetPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
           <div className="fixed inset-0 bg-black/20 fade-enter" onClick={() => setShowSetup(false)} />
           <div className="relative bg-white dark:bg-gray-800 rounded-3xl w-full overflow-y-auto shadow-xl modal-enter"
-            style={{ maxWidth: 360, maxHeight: '80vh' }}>
+            style={{ maxWidth: 320, maxHeight: '80vh' }}>
             <div className="p-6">
-              <h3 className="text-lg font-bold text-apple-text dark:text-apple-dark-text mb-4">设置分类预算</h3>
-              <div className="space-y-3 max-h-[50vh] overflow-y-auto">
-                {getExpenseCategories().map(c => (
-                  <div key={c.name} className="flex items-center gap-3">
-                    <div className="flex items-center gap-2 min-w-0 shrink-0" style={{ width: 60 }}>
-                      <CategoryIcon name={c.name} size={16} />
-                      <span className="text-xs text-apple-text dark:text-apple-dark-text truncate">{c.name}</span>
-                    </div>
-                    <div className="flex-1 flex items-center gap-2">
-                      <span className="text-[10px] text-apple-subtext shrink-0">¥</span>
-                      <input type="number" value={setupAmounts[c.name] ?? ''} onChange={e => setSetupAmounts(p => ({ ...p, [c.name]: e.target.value }))}
-                        placeholder="0"
-                        className="flex-1 px-3 py-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-sm text-center outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" />
-                    </div>
-                    {catSpent(c.name) > 0 && (
-                      <span className="text-[10px] text-apple-subtext shrink-0 whitespace-nowrap">
-                        已用 {formatCurrency(catSpent(c.name))}
-                      </span>
-                    )}
-                  </div>
-                ))}
+              <h3 className="text-lg font-bold text-apple-text dark:text-apple-dark-text text-center mb-4">设置月预算总额</h3>
+              <div className="flex items-center gap-2 mb-6">
+                <span className="text-sm text-apple-subtext font-medium">¥</span>
+                <input type="number" value={setupInput} onChange={e => setSetupInput(e.target.value)}
+                  placeholder="输入月预算总额"
+                  autoFocus
+                  className="flex-1 px-4 py-3 rounded-2xl bg-gray-100 dark:bg-gray-700 text-lg text-center font-bold outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" />
               </div>
-              <div className="flex items-center justify-between mt-4 pt-3 border-t border-apple-separator dark:border-apple-dark-separator">
-                <span className="text-xs text-apple-subtext">总计</span>
-                <span className="text-sm font-bold text-apple-text dark:text-apple-dark-text">
-                  {formatCurrency(Object.entries(setupAmounts).reduce((s, [, v]) => s + (parseFloat(v) || 0), 0))}
-                </span>
-              </div>
-              <div className="flex gap-3 mt-4">
+              <p className="text-xs text-apple-subtext text-center mb-4">
+                本月已支出 {formatCurrency(totalSpent)}
+              </p>
+              <div className="flex gap-3">
                 <button onClick={() => setShowSetup(false)}
                   className="flex-1 py-3 rounded-2xl font-semibold text-sm bg-gray-100 dark:bg-gray-700 text-apple-text dark:text-apple-dark-text apple-btn">
                   取消
